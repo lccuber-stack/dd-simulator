@@ -389,6 +389,7 @@ const state = {
     },
     autoStopActive: true,
     emergencyBraking: false,
+    autoStopBannerUntil: 0,
     rainDrops: [],
     workers: [],
     trackMarks: [],
@@ -695,14 +696,16 @@ function updateSimulation(dt) {
         }
     }
 
-    // Clear Auto Stop lock and hide banner immediately when all detected people are outside Auto Stop range
+    // Clear drive lock immediately when all detected people are outside Auto Stop range,
+    // while keeping the Auto Stop banner visible for at least 3 seconds after triggering.
+    const now = Date.now();
     if (!personInDangerZone) {
         if (state.emergencyBraking) {
             state.emergencyBraking = false;
             syncCenterAutoStopIcon();
         }
         const brakeBanner = document.getElementById('emergencyBrakeBanner');
-        if (brakeBanner && !brakeBanner.classList.contains('hidden')) {
+        if (brakeBanner && now >= state.autoStopBannerUntil && !brakeBanner.classList.contains('hidden')) {
             brakeBanner.classList.add('hidden');
         }
     }
@@ -719,6 +722,7 @@ function updateSimulation(dt) {
     if (personInDangerZone) {
         if (!state.emergencyBraking && (Math.abs(desiredSpeed) > 0.15 || state.keys.up || state.keys.down || state.keys.left || state.keys.right)) {
             state.emergencyBraking = true;
+            state.autoStopBannerUntil = now + 3000;
             hmiAudio.playEmergencyStop();
             const brakeBanner = document.getElementById('emergencyBrakeBanner');
             if (brakeBanner) brakeBanner.classList.remove('hidden');
