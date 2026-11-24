@@ -5,24 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Excavator 360° HMI & Dirt Detection Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100dvh;
-            background-color: #05070a;
-            color: #f8fafc;
+            height: 100%;
+            background-color: #07090d;
             font-family: 'Inter', sans-serif;
+            color: #f1f5f9;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -33,54 +32,57 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Exact 1080x1920 (9:16) Portrait HMI Container Regardless of Viewport Scaling */
+        /* Strict 1080x1920 (9:16) Portrait Ratio Container */
         .hmi-chassis {
             aspect-ratio: 1080 / 1920;
-            height: min(100dvh, calc(100vw * 1920 / 1080));
             width: min(100vw, calc(100dvh * 1080 / 1920));
-            background: #0d1017;
-            border: 2px solid #262d3d;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+            height: min(100dvh, calc(100vw * 1920 / 1080));
+            background: #0f131a;
+            border: 2px solid #232b38;
+            border-radius: 16px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
             display: flex;
             flex-direction: column;
             overflow: hidden;
             position: relative;
         }
 
-        /* Top Half: 360 Stitched Camera Viewport (50% of 1080x1920) */
+        /* Top Half: 360 Stitched Camera Viewport (52% of 1080x1920) */
         .camera-viewport {
-            flex: 0 0 48%;
+            flex: 0 0 52%;
             position: relative;
             background: #141210;
             border-bottom: 2px solid #2a3242;
             overflow: hidden;
         }
 
-        #cameraCanvas {
+        canvas#simCanvas {
+            display: block;
             width: 100%;
             height: 100%;
-            display: block;
         }
 
-        /* Critical Alert Pulse Animation */
-        @keyframes pulse-danger {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65); }
-            50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        /* Bottom Half: Ergonomic Operator Controls (48% of 1080x1920) */
+        .control-deck {
+            flex: 1 1 48%;
+            background: #0d1117;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 8px;
+            overflow: hidden;
         }
 
-        .alert-pulse-danger {
-            animation: pulse-danger 1.1s infinite;
-        }
-
-        /* Top-Center Round Auto Stop Icon Triggered Blink */
+        /* Animations */
         @keyframes pulse-icon-trigger {
             0%, 100% {
                 transform: translateX(-50%) scale(1);
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.95), 0 0 22px rgba(239, 68, 68, 0.85);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85);
             }
             50% {
-                transform: translateX(-50%) scale(1.14);
-                box-shadow: 0 0 0 12px rgba(239, 68, 68, 0), 0 0 8px rgba(239, 68, 68, 0.35);
+                transform: translateX(-50%) scale(1.12);
+                box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
             }
         }
 
@@ -90,19 +92,21 @@
 
         @keyframes pulse-boundary-bar {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.65; }
+            50% { opacity: 0.55; }
         }
 
         .boundary-bar-active {
-            animation: pulse-boundary-bar 0.9s infinite ease-in-out;
+            animation: pulse-boundary-bar 0.85s infinite ease-in-out;
         }
 
-        /* Responsive Drive Buttons */
+        /* Touch-friendly Drive & Swing Buttons */
         .touch-btn {
             touch-action: none;
-            transition: transform 0.08s ease, background-color 0.1s ease, border-color 0.1s ease;
+            transition: transform 0.08s ease, background-color 0.12s ease, border-color 0.12s ease;
+            cursor: pointer;
         }
-        .touch-btn:active, .touch-btn.active-press {
+
+        .touch-btn:active, .touch-btn.is-active {
             transform: scale(0.96);
             background-color: #2563eb !important;
             border-color: #60a5fa !important;
@@ -112,142 +116,156 @@
 </head>
 <body>
 
-<div class="hmi-chassis rounded-none sm:rounded-2xl">
-    <!-- TOP SYSTEM STATUS BAR (Minimal Industrial Header) -->
-    <header class="h-11 px-3.5 bg-[#090b10] border-b border-[#1f2634] flex items-center justify-between shrink-0 z-20">
+<div class="hmi-chassis" id="hmiApp">
+
+    <!-- TOP STATUS HEADER BAR -->
+    <header class="bg-[#131822] border-b border-[#252e3d] px-3 py-2 flex items-center justify-between shrink-0 z-20">
         <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="text-xs font-extrabold tracking-wider text-slate-200 uppercase">360° VIEW</span>
-            <span id="speedReadout" class="text-[11px] font-mono-tech font-bold px-2 py-0.5 rounded bg-slate-800/90 text-sky-300 border border-slate-700/70">0.0 km/h</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-extrabold tracking-wider text-slate-100">360° VIEW</span>
+            <span id="speedReadout" class="font-mono-tech text-[11px] font-bold bg-[#1d2534] border border-[#2f3b52] text-sky-300 px-2 py-0.5 rounded">0.0 km/h</span>
         </div>
 
-        <!-- PRIMARY AUTO STOP STATUS PILL -->
-        <div id="autoStopPill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/70 text-emerald-300 transition-colors duration-200">
-            <svg id="autoStopIcon" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        <!-- Primary Auto Stop System Pill -->
+        <div id="autoStopHeaderPill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/50 bg-emerald-950/70 text-emerald-300 text-[11px] font-extrabold tracking-wide transition-colors">
+            <svg id="headerShieldIcon" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
-            <span id="autoStopPillText" class="text-[11px] font-extrabold tracking-wide uppercase">AUTO STOP: ON</span>
+            <span id="autoStopHeaderText">AUTO STOP: ON</span>
         </div>
     </header>
 
     <!-- UPPER HALF: 360° STITCHED CAMERA VIEWPORT -->
     <section class="camera-viewport" id="cameraViewport">
-        <canvas id="cameraCanvas"></canvas>
+        <canvas id="simCanvas"></canvas>
 
-        <!-- TOP CENTER ROUND AUTO STOP STATUS ICON (Blinks when Auto Stop is triggered) -->
-        <div id="centerAutoStopIcon" title="Auto Stop Status" class="absolute top-2.5 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-emerald-600/95 border-2 border-emerald-200 shadow-lg flex items-center justify-center z-20 transition-colors duration-200 pointer-events-none">
-            <svg id="centerAutoStopSvg" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        <!-- Left & Right Orange Vertical Boundary Limit Bars -->
+        <div id="leftBoundaryBar" class="hidden absolute top-0 bottom-0 left-0 w-3 bg-gradient-to-r from-orange-500 via-amber-500 to-transparent shadow-[0_0_20px_rgba(249,115,22,0.95)] boundary-bar-active pointer-events-none z-20">
+            <div class="absolute top-1/2 -translate-y-1/2 left-1 bg-orange-600 text-white font-mono-tech text-[9px] font-extrabold px-1 py-1.5 rounded tracking-tighter shadow">
+                L-MAX
+            </div>
+        </div>
+
+        <div id="rightBoundaryBar" class="hidden absolute top-0 bottom-0 right-0 w-3 bg-gradient-to-l from-orange-500 via-amber-500 to-transparent shadow-[0_0_20px_rgba(249,115,22,0.95)] boundary-bar-active pointer-events-none z-20">
+            <div class="absolute top-1/2 -translate-y-1/2 right-1 bg-orange-600 text-white font-mono-tech text-[9px] font-extrabold px-1 py-1.5 rounded tracking-tighter shadow">
+                R-MAX
+            </div>
+        </div>
+
+        <!-- Weather Pill (Top Left) -->
+        <div class="absolute top-2.5 left-2.5 bg-slate-900/85 backdrop-blur-sm border border-slate-700/80 px-2.5 py-1 rounded-lg flex items-center gap-1.5 pointer-events-none z-10">
+            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+            </svg>
+            <span class="text-[10px] font-bold tracking-wider text-slate-200">RAIN</span>
+        </div>
+
+        <!-- Top-Center Round Auto Stop Status Icon -->
+        <div id="centerAutoStopIcon" style="left: 50%; transform: translateX(-50%);" class="absolute top-2.5 w-11 h-11 rounded-full bg-emerald-600/95 border-2 border-emerald-200 shadow-lg flex items-center justify-center transition-colors z-20 pointer-events-none">
+            <svg id="centerShieldSvg" class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
         </div>
 
-        <!-- SWING BOUNDARY LIMIT VISUAL INDICATORS (Vertical Orange Bars on Left/Right Viewport Edges) -->
-        <div id="leftBoundaryBar" class="hidden absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-orange-500 via-amber-500 to-transparent shadow-[0_0_22px_rgba(249,115,22,0.95)] border-l-4 border-orange-300 z-25 pointer-events-none boundary-bar-active flex items-center">
-            <div class="bg-orange-500 text-slate-950 font-mono-tech font-black text-[9px] px-1 py-2 rounded-r shadow-md tracking-tighter" style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                L-LIMIT
-            </div>
-        </div>
-        <div id="rightBoundaryBar" class="hidden absolute inset-y-0 right-0 w-3 bg-gradient-to-l from-orange-500 via-amber-500 to-transparent shadow-[0_0_22px_rgba(249,115,22,0.95)] border-r-4 border-orange-300 z-25 pointer-events-none boundary-bar-active flex items-center justify-end">
-            <div class="bg-orange-500 text-slate-950 font-mono-tech font-black text-[9px] px-1 py-2 rounded-l shadow-md tracking-tighter" style="writing-mode: vertical-rl;">
-                R-LIMIT
-            </div>
+        <!-- Top-Right Individual Camera Health Pills -->
+        <div class="absolute top-2.5 right-2.5 bg-slate-900/85 backdrop-blur-sm border border-slate-700/80 px-2 py-1 rounded-lg flex items-center gap-1 font-mono-tech text-[9px] font-bold z-10 pointer-events-none">
+            <span id="camBadgeFront" class="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-600/60">F:OK</span>
+            <span id="camBadgeRear" class="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-600/60">R:OK</span>
+            <span id="camBadgeLeft" class="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-600/60">L:OK</span>
+            <span id="camBadgeRight" class="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-600/60">RGT:OK</span>
         </div>
 
-        <!-- MINIMAL HUD TOP OVERLAY: Rain & 4-Lens Health -->
-        <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
-            <div class="bg-slate-950/80 backdrop-blur-sm border border-slate-700/70 rounded-lg px-2 py-1 flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+        <!-- Simple Dirt Detection Notice Banner (No Wash Button Inside) -->
+        <div id="dirtAlertBanner" class="hidden absolute bottom-3 left-3 right-3 bg-amber-950/95 border-2 border-amber-400 rounded-xl px-3.5 py-2.5 shadow-2xl flex items-center gap-3 z-20 pointer-events-none">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400 flex items-center justify-center shrink-0 text-amber-300">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
-                <span class="text-[10px] font-bold text-slate-200 uppercase">RAIN</span>
             </div>
-
-            <!-- 4-Camera Health Indicators -->
-            <div class="bg-slate-950/80 backdrop-blur-sm border border-slate-700/70 rounded-lg px-2 py-1 flex items-center gap-1">
-                <span id="badge-front" class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">F:OK</span>
-                <span id="badge-rear" class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">R:OK</span>
-                <span id="badge-left" class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">L:OK</span>
-                <span id="badge-right" class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">RGT:OK</span>
-            </div>
-        </div>
-
-        <!-- AUTO STOP TRIGGERED BANNER (Locks drive while person is in range, stays visible at least 3s) -->
-        <div id="emergencyBrakeBanner" class="hidden absolute top-16 left-3 right-3 bg-red-600/95 border-2 border-white rounded-xl px-3.5 py-2.5 shadow-2xl flex items-center gap-3 z-30 alert-pulse-danger">
-            <div class="w-8 h-8 rounded-full bg-white text-red-600 flex items-center justify-center font-black text-base shrink-0">!</div>
             <div class="min-w-0">
-                <div class="text-xs font-black tracking-wider uppercase text-white">AUTO STOP ACTIVATED</div>
-                <div class="text-[11px] font-medium text-red-100">Person inside safety zone — Drive locked until clear.</div>
+                <div id="dirtAlertTitle" class="text-xs font-extrabold text-amber-200 tracking-wide uppercase">REAR CAMERA DIRTY</div>
+                <div id="dirtAlertSub" class="text-[11px] font-semibold text-amber-100/90">Auto Stop is not working properly.</div>
             </div>
         </div>
 
-        <!-- SIMPLE DIRT DETECTION NOTICE (Shows dirty camera & Auto Stop failure, no wash button) -->
-        <div id="dirtAlertOverlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 z-20 pointer-events-none transition-all duration-200">
-            <div class="bg-[#181612]/95 border-2 border-amber-500 rounded-xl px-3.5 py-2.5 flex items-center gap-3 shadow-2xl">
-                <div id="dirtAlertIconWrap" class="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/60 flex items-center justify-center shrink-0 text-amber-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <div id="dirtAlertTitle" class="text-xs font-extrabold uppercase tracking-wide text-amber-300">DIRTY CAMERA</div>
-                    <div id="dirtAlertMsg" class="text-xs font-semibold text-white">Auto Stop is not working properly.</div>
+        <!-- Auto Stop Triggered Banner (Shown >= 3s or until person clears zone) -->
+        <div id="emergencyBrakeBanner" class="hidden absolute top-16 left-3 right-3 bg-red-600/95 border-2 border-white rounded-xl px-3.5 py-2.5 shadow-2xl flex items-center gap-3 z-30 pointer-events-none">
+            <div class="w-8 h-8 rounded-full bg-white text-red-600 font-black text-base flex items-center justify-center shrink-0">!</div>
+            <div>
+                <div class="text-xs font-black text-white tracking-wider uppercase">AUTO STOP ACTIVATED</div>
+                <div class="text-[11px] font-semibold text-red-100">Person inside safety zone — Drive locked until clear.</div>
+            </div>
+        </div>
+
+        <!-- Collision Banner (Triggered if operator drives into person while camera is blinded by dirt) -->
+        <div id="collisionBanner" class="hidden absolute inset-x-3 top-1/2 -translate-y-1/2 bg-red-950/95 border-2 border-red-400 rounded-xl p-3.5 shadow-2xl flex items-center justify-between gap-3 z-40">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-red-600 text-white font-black text-lg flex items-center justify-center shrink-0">✕</div>
+                <div>
+                    <div class="text-xs font-black text-red-200 uppercase tracking-wider">COLLISION — PERSON STRUCK</div>
+                    <div class="text-[11px] text-red-100">Auto Stop failed due to dirty camera lens.</div>
                 </div>
             </div>
+            <button type="button" onclick="resetCollisionState()" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold shrink-0 cursor-pointer">
+                Reset
+            </button>
         </div>
     </section>
 
-    <!-- LOWER HALF: CLEAN OPERATOR CONTROLS & SIMULATION SETTINGS (Zero Scrollbar, Full Area Utilization) -->
-    <main class="flex-1 min-h-0 bg-[#11151d] p-2 flex flex-col justify-between gap-1.5 overflow-hidden">
-        
-        <!-- 1. DRIVE & SWING PAD -->
-        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2 flex-1 flex flex-col justify-between min-h-0">
-            <div class="flex items-center justify-between mb-1">
+    <!-- LOWER HALF: BALANCED HMI OPERATOR & SIMULATION CONTROLS -->
+    <main class="control-deck">
+
+        <!-- 1. DRIVE & SMOOTH SWING CONTROLS -->
+        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2.5 shrink-0">
+            <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Drive & Swing</span>
-                    <span id="cabAngleReadout" class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">0°</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Drive & Swing</span>
+                    <span id="swingAngleBadge" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-amber-300">0°</span>
                 </div>
-                <span class="text-[10px] font-mono-tech text-slate-500">WASD / Q·C·E</span>
+                <span class="text-[10px] font-mono-tech text-slate-400">WASD / Q·C·E</span>
             </div>
 
-            <div class="grid grid-cols-3 gap-1.5 items-stretch flex-1 min-h-0">
-                <!-- Left / Right Track Steer -->
-                <div class="grid grid-cols-2 gap-1 min-h-0">
-                    <button id="btn-left" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex flex-col items-center justify-center text-slate-200 font-bold text-xs min-h-0">
-                        <span>◀</span>
-                        <span class="text-[9px] mt-0.5">LEFT</span>
+            <div class="grid grid-cols-12 gap-2">
+                <!-- Left / Right Track Steering (5 cols) -->
+                <div class="col-span-5 grid grid-cols-2 gap-1.5">
+                    <button type="button" id="btnLeft" class="touch-btn h-24 bg-[#1e2636] border border-[#313e54] rounded-xl flex flex-col items-center justify-center gap-1 text-slate-100">
+                        <span class="text-sm">◀</span>
+                        <span class="text-[10px] font-extrabold tracking-wider">LEFT</span>
                     </button>
-                    <button id="btn-right" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex flex-col items-center justify-center text-slate-200 font-bold text-xs min-h-0">
-                        <span>▶</span>
-                        <span class="text-[9px] mt-0.5">RIGHT</span>
-                    </button>
-                </div>
-
-                <!-- Forward / Reverse -->
-                <div class="flex flex-col gap-1 min-h-0">
-                    <button id="btn-up" class="touch-btn flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-xs min-h-0">
-                        ▲ FWD
-                    </button>
-                    <button id="btn-down" class="touch-btn flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-xs min-h-0">
-                        ▼ REV
+                    <button type="button" id="btnRight" class="touch-btn h-24 bg-[#1e2636] border border-[#313e54] rounded-xl flex flex-col items-center justify-center gap-1 text-slate-100">
+                        <span class="text-sm">▶</span>
+                        <span class="text-[10px] font-extrabold tracking-wider">RIGHT</span>
                     </button>
                 </div>
 
-                <!-- Wash & Two-Way Cab Swing + Center Reset -->
-                <div class="flex flex-col gap-1 min-h-0">
-                    <button onclick="cleanCameras()" class="flex-1 bg-sky-950 hover:bg-sky-900 active:scale-95 border border-sky-500/60 rounded-xl py-1 px-1.5 text-sky-200 font-bold text-xs flex items-center justify-center gap-1 transition min-h-0">
-                        <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                <!-- Forward / Reverse Drive (4 cols) -->
+                <div class="col-span-4 flex flex-col gap-1.5">
+                    <button type="button" id="btnFwd" class="touch-btn h-[45px] bg-[#1e2636] border border-[#313e54] rounded-xl flex items-center justify-center gap-1.5 text-slate-100">
+                        <span class="text-xs">▲</span>
+                        <span class="text-[11px] font-extrabold tracking-wider">FWD</span>
+                    </button>
+                    <button type="button" id="btnRev" class="touch-btn h-[45px] bg-[#1e2636] border border-[#313e54] rounded-xl flex items-center justify-center gap-1.5 text-slate-100">
+                        <span class="text-xs">▼</span>
+                        <span class="text-[11px] font-extrabold tracking-wider">REV</span>
+                    </button>
+                </div>
+
+                <!-- Camera Washer & Smooth Swing Left / Center / Right (3 cols) -->
+                <div class="col-span-3 flex flex-col gap-1.5">
+                    <button type="button" id="btnWash" onclick="triggerCameraWash()" class="h-[45px] bg-sky-950/90 hover:bg-sky-900 active:scale-95 border border-sky-500/70 rounded-xl flex flex-col items-center justify-center text-sky-200 transition cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
-                        <span>WASH</span>
+                        <span class="text-[9px] font-extrabold tracking-wider mt-0.5">WASH</span>
                     </button>
-                    <div class="grid grid-cols-3 gap-1 flex-1 min-h-0">
-                        <button id="btn-swing-left" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-[11px] min-h-0" title="Swing Left (Q)">
+                    <div class="grid grid-cols-3 gap-1 h-[45px]">
+                        <button type="button" id="btnSwingLeft" title="Swing Left (Q)" class="touch-btn bg-[#1e2636] border border-[#313e54] rounded-lg flex items-center justify-center text-[10px] font-extrabold text-slate-200">
                             ↺L
                         </button>
-                        <button id="btn-swing-reset" onclick="resetCabSwing()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-amber-300 font-bold text-[10px] min-h-0" title="Center Cab (C)">
+                        <button type="button" id="btnSwingReset" onclick="resetSwingToCenter()" title="Reset Swing to 0° (C)" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-lg flex items-center justify-center text-[10px] font-mono-tech font-extrabold text-amber-300 transition cursor-pointer">
                             0°
                         </button>
-                        <button id="btn-swing-right" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-[11px] min-h-0" title="Swing Right (E)">
+                        <button type="button" id="btnSwingRight" title="Swing Right (E)" class="touch-btn bg-[#1e2636] border border-[#313e54] rounded-lg flex items-center justify-center text-[10px] font-extrabold text-slate-200">
                             ↻R
                         </button>
                     </div>
@@ -256,1238 +274,1232 @@
         </div>
 
         <!-- 2. SWING BOUNDARY LIMIT CONTROLS -->
-        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl px-2.5 py-1.5 shrink-0">
-            <div class="flex items-center justify-between gap-1.5">
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Swing Limit</span>
+        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2.5 shrink-0">
+            <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center gap-1.5">
+                    <span id="swingLimitDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Swing Limit</span>
                 </div>
                 <div class="flex items-center gap-1">
-                    <button onclick="setSwingLimitPreset(null, null)" id="limit-off" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-orange-600 text-white border border-orange-400">OFF</button>
-                    <button onclick="setSwingLimitPreset(45, 45)" id="limit-45" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±45°</button>
-                    <button onclick="setSwingLimitPreset(90, 90)" id="limit-90" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±90°</button>
-                    <button onclick="setSwingLimitPreset(135, 135)" id="limit-135" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±135°</button>
+                    <button type="button" onclick="setSwingPreset(null)" id="presetOff" class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-600 text-white border border-orange-400 cursor-pointer">OFF</button>
+                    <button type="button" onclick="setSwingPreset(45)" id="preset45" class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e2636] text-slate-300 border border-[#313e54] cursor-pointer">±45°</button>
+                    <button type="button" onclick="setSwingPreset(90)" id="preset90" class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e2636] text-slate-300 border border-[#313e54] cursor-pointer">±90°</button>
+                    <button type="button" onclick="setSwingPreset(135)" id="preset135" class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e2636] text-slate-300 border border-[#313e54] cursor-pointer">±135°</button>
                 </div>
             </div>
 
-            <!-- Individual Left / Right Boundary Fine-Tuning -->
-            <div class="grid grid-cols-2 gap-1.5 mt-1.5">
-                <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-orange-300">Left</span>
-                    <div class="flex items-center gap-1">
-                        <button onclick="adjustSideLimit('left', -15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">−</button>
-                        <span id="leftLimitLabel" class="font-mono-tech text-[10px] font-bold text-slate-200 w-8 text-center">OFF</span>
-                        <button onclick="adjustSideLimit('left', 15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">+</button>
+            <div class="grid grid-cols-2 gap-2">
+                <!-- Left Boundary Stepper -->
+                <div class="bg-[#10151e] border border-[#232c3d] rounded-lg px-2 py-1 flex items-center justify-between">
+                    <span class="text-[10px] font-semibold text-slate-400">Left</span>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="adjustBoundaryLimit('left', -15)" class="w-6 h-6 rounded bg-[#1e2636] hover:bg-[#2a354b] border border-[#313e54] text-xs font-bold text-slate-200 cursor-pointer">−</button>
+                        <span id="leftLimitDisplay" class="font-mono-tech text-[10px] font-bold text-orange-300 w-9 text-center">OFF</span>
+                        <button type="button" onclick="adjustBoundaryLimit('left', 15)" class="w-6 h-6 rounded bg-[#1e2636] hover:bg-[#2a354b] border border-[#313e54] text-xs font-bold text-slate-200 cursor-pointer">+</button>
                     </div>
                 </div>
-                <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-orange-300">Right</span>
-                    <div class="flex items-center gap-1">
-                        <button onclick="adjustSideLimit('right', -15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">−</button>
-                        <span id="rightLimitLabel" class="font-mono-tech text-[10px] font-bold text-slate-200 w-8 text-center">OFF</span>
-                        <button onclick="adjustSideLimit('right', 15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">+</button>
+
+                <!-- Right Boundary Stepper -->
+                <div class="bg-[#10151e] border border-[#232c3d] rounded-lg px-2 py-1 flex items-center justify-between">
+                    <span class="text-[10px] font-semibold text-slate-400">Right</span>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="adjustBoundaryLimit('right', -15)" class="w-6 h-6 rounded bg-[#1e2636] hover:bg-[#2a354b] border border-[#313e54] text-xs font-bold text-slate-200 cursor-pointer">−</button>
+                        <span id="rightLimitDisplay" class="font-mono-tech text-[10px] font-bold text-orange-300 w-9 text-center">OFF</span>
+                        <button type="button" onclick="adjustBoundaryLimit('right', 15)" class="w-6 h-6 rounded bg-[#1e2636] hover:bg-[#2a354b] border border-[#313e54] text-xs font-bold text-slate-200 cursor-pointer">+</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. SIMULATION CONTROLS (People Count + Dirt Triggers) -->
-        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2 space-y-1.5 shrink-0">
-            <!-- Row 1: People Counter & Auto Rain Mud -->
-            <div class="grid grid-cols-2 gap-1.5">
-                <!-- People Count Control (Default: 1) -->
-                <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between">
-                    <span class="text-[11px] font-bold text-slate-300">People</span>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="changeWorkerCount(-1)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">−</button>
-                        <span id="workerCountDisplay" class="font-mono-tech text-xs font-bold text-white w-4 text-center">1</span>
-                        <button onclick="changeWorkerCount(1)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">+</button>
+        <!-- 3. SITE WORKERS & MANUAL CAMERA MUD CONTROLS -->
+        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2.5 flex flex-col gap-2 shrink-0">
+            <!-- Row 1: People Counter & Auto Mud Toggle -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-[#10151e] border border-[#232c3d] rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+                    <span class="text-[11px] font-semibold text-slate-300">People</span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="changeWorkerCount(-1)" class="w-6 h-6 rounded bg-[#1e2636] hover:bg-[#2a354b] border border-[#313e54] text-xs font-bold text-slate-200 cursor-pointer">−</button>
+                        <span id="workerCountDisplay" class="font-mono-tech text-xs font-extrabold text-white w-4 text-center">1</span>
+                        <button type="button" onclick="changeWorkerCount(1)" class="w-6 h-6 rounded bg-[#1e2636] hover:bg-[#2a354b] border border-[#313e54] text-xs font-bold text-slate-200 cursor-pointer">+</button>
                     </div>
                 </div>
 
-                <!-- Auto Mud Build-up Toggle -->
-                <label class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between cursor-pointer">
-                    <span class="text-[11px] font-bold text-slate-300">Auto Mud</span>
+                <label class="bg-[#10151e] border border-[#232c3d] rounded-lg px-2.5 py-1.5 flex items-center justify-between cursor-pointer">
+                    <span class="text-[11px] font-semibold text-slate-300">Auto Mud</span>
                     <input type="checkbox" id="autoDirtToggle" checked class="w-4 h-4 accent-amber-500 rounded cursor-pointer">
                 </label>
             </div>
 
-            <!-- Row 2: Instant Dirt Injection Buttons -->
-            <div class="grid grid-cols-3 gap-1.5">
-                <button onclick="triggerDirtOnSector('front')" class="bg-amber-950/60 hover:bg-amber-900/70 active:scale-95 border border-amber-600/50 text-amber-200 text-[11px] font-bold py-1.5 rounded-lg transition">
-                    + Mud Front
-                </button>
-                <button onclick="triggerDirtOnSector('rear')" class="bg-amber-950/60 hover:bg-amber-900/70 active:scale-95 border border-amber-600/50 text-amber-200 text-[11px] font-bold py-1.5 rounded-lg transition">
-                    + Mud Rear
-                </button>
-                <button onclick="triggerDirtOnSector('all')" class="bg-red-950/60 hover:bg-red-900/70 active:scale-95 border border-red-600/50 text-red-200 text-[11px] font-bold py-1.5 rounded-lg transition">
-                    + Mud All
-                </button>
+            <!-- Row 2: Instant Dirt Injection Buttons for Any Individual Camera or All Cameras -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Manual Camera Mud</span>
+                    <span class="text-[9px] font-mono-tech text-slate-500">+45% DIRT / TAP</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5">
+                    <button type="button" onclick="triggerDirtOnSector('front')" class="bg-amber-950/85 hover:bg-amber-900 active:scale-95 border border-amber-500/70 text-amber-200 text-[10px] font-bold py-2 rounded-lg transition cursor-pointer">
+                        +Front
+                    </button>
+                    <button type="button" onclick="triggerDirtOnSector('rear')" class="bg-amber-950/85 hover:bg-amber-900 active:scale-95 border border-amber-500/70 text-amber-200 text-[10px] font-bold py-2 rounded-lg transition cursor-pointer">
+                        +Rear
+                    </button>
+                    <button type="button" onclick="triggerDirtOnSector('left')" class="bg-amber-950/85 hover:bg-amber-900 active:scale-95 border border-amber-500/70 text-amber-200 text-[10px] font-bold py-2 rounded-lg transition cursor-pointer">
+                        +Left
+                    </button>
+                    <button type="button" onclick="triggerDirtOnSector('right')" class="bg-amber-950/85 hover:bg-amber-900 active:scale-95 border border-amber-500/70 text-amber-200 text-[10px] font-bold py-2 rounded-lg transition cursor-pointer">
+                        +Right
+                    </button>
+                    <button type="button" onclick="triggerDirtOnSector('all')" class="bg-red-950/85 hover:bg-red-900 active:scale-95 border border-red-500/80 text-red-200 text-[10px] font-bold py-2 rounded-lg transition cursor-pointer">
+                        +All
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- 4. APP VERSION & GITHUB UPDATE BAR -->
         <div class="bg-[#161c26] border border-[#252e3d] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shrink-0">
             <div class="flex items-center gap-2 min-w-0">
-                <span id="appVersionBadge" class="text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">v1.5.2</span>
+                <span id="appVersionBadge" class="text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">v1.6.3</span>
                 <span id="updateStatusText" class="text-[10px] text-slate-400 truncate">Ready</span>
             </div>
-            <button id="btnCheckUpdate" onclick="fetchLatestUpdate()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-lg px-2.5 py-1 text-sky-300 font-bold text-[10px] flex items-center gap-1 transition shrink-0">
-                <svg id="updateIcon" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            <button type="button" id="btnGitHubUpdate" onclick="fetchLatestFromGitHub()" class="px-2.5 py-1 rounded-lg bg-[#1e2636] hover:bg-[#2a354b] active:scale-95 border border-[#313e54] text-slate-200 text-[10px] font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer">
+                <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
                 <span>Update</span>
             </button>
         </div>
+
     </main>
 </div>
 
 <script>
-/**
- * EXCAVATOR 360° HMI & DIRT DETECTION SIMULATOR
- * Complete Verified Build: 1080x1920 Ratio, Swing Reset & Left/Right Boundary Limits
- */
-const APP_VERSION = 'v1.5.2';
+const APP_VERSION = 'v1.6.3';
 
-async function fetchLatestUpdate() {
-    const btn = document.getElementById('btnCheckUpdate');
-    const statusText = document.getElementById('updateStatusText');
-    const icon = document.getElementById('updateIcon');
-
-    if (btn) btn.disabled = true;
-    if (icon) icon.classList.add('animate-spin');
-    if (statusText) {
-        statusText.textContent = 'Checking GitHub...';
-        statusText.className = 'text-[11px] text-sky-300 truncate';
-    }
-
-    try {
-        if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const reg of registrations) {
-                await reg.update();
-                await reg.unregister();
-            }
-        }
-        if ('caches' in window) {
-            const cacheKeys = await caches.keys();
-            await Promise.all(cacheKeys.map(key => caches.delete(key)));
-        }
-
-        const baseUrl = window.location.href.split('?')[0].split('#')[0];
-        const freshUrl = `${baseUrl}?v=${Date.now()}`;
-        await fetch(freshUrl, { cache: 'no-store' });
-
-        if (statusText) {
-            statusText.textContent = 'Updating...';
-            statusText.className = 'text-[11px] text-emerald-400 font-bold truncate';
-        }
-
-        setTimeout(() => {
-            window.location.replace(freshUrl);
-        }, 350);
-    } catch (err) {
-        if (statusText) {
-            statusText.textContent = 'Reloading latest...';
-            statusText.className = 'text-[11px] text-amber-300 truncate';
-        }
-        setTimeout(() => {
-            const baseUrl = window.location.href.split('?')[0].split('#')[0];
-            window.location.replace(`${baseUrl}?v=${Date.now()}`);
-        }, 400);
-    }
-}
-
-// --- AUDIO ENGINE (Synthesized HMI Chimes & Alerts, No External Audio Files) ---
+// --- Web Audio API Synthesizer for Industrial HMI Alerts ---
 class HmiAudio {
     constructor() {
         this.ctx = null;
-        this.lastWarnTime = 0;
+        this.lastBeepTime = 0;
     }
 
     init() {
         if (!this.ctx) {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) this.ctx = new AudioContext();
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
         }
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
     }
 
-    playAutoStopAlert() {
-        const now = Date.now();
-        if (now - this.lastWarnTime < 1200) return;
-        this.lastWarnTime = now;
+    playAutoStopAlarm() {
+        const now = performance.now();
+        if (now - this.lastBeepTime < 450) return;
+        this.lastBeepTime = now;
         this.init();
         if (!this.ctx) return;
 
-        [0, 0.16, 0.32].forEach((offset) => {
+        try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(880, this.ctx.currentTime + offset);
-            osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + offset + 0.12);
-            gain.gain.setValueAtTime(0.14, this.ctx.currentTime + offset);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + offset + 0.13);
+            osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+            osc.frequency.setValueAtTime(620, this.ctx.currentTime + 0.12);
+
+            gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.26);
+
             osc.connect(gain);
             gain.connect(this.ctx.destination);
-            osc.start(this.ctx.currentTime + offset);
-            osc.stop(this.ctx.currentTime + offset + 0.14);
-        });
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.27);
+        } catch (e) {}
     }
 
-    playDirtDegradeChime() {
+    playDirtChime() {
         this.init();
         if (!this.ctx) return;
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(520, this.ctx.currentTime);
+            osc.frequency.setValueAtTime(410, this.ctx.currentTime + 0.14);
 
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(587.33, this.ctx.currentTime);
-        osc.frequency.setValueAtTime(440, this.ctx.currentTime + 0.18);
-        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.42);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.45);
+            gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.31);
+        } catch (e) {}
     }
 
-    playWashSound() {
+    playBoundaryBump() {
+        const now = performance.now();
+        if (now - this.lastBeepTime < 350) return;
+        this.lastBeepTime = now;
         this.init();
         if (!this.ctx) return;
-
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(320, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(760, this.ctx.currentTime + 0.28);
-        gain.gain.setValueAtTime(0.09, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.3);
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(310, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.11, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.13);
+        } catch (e) {}
     }
 
-    playBoundaryLimit() {
-        const now = Date.now();
-        if (now - this.lastWarnTime < 700) return;
-        this.lastWarnTime = now;
+    playCollisionImpact() {
         this.init();
         if (!this.ctx) return;
-
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(520, this.ctx.currentTime);
-        osc.frequency.setValueAtTime(420, this.ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(55, this.ctx.currentTime + 0.35);
+            gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.38);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.4);
+        } catch (e) {}
     }
 }
 
-const hmiAudio = new HmiAudio();
+const audio = new HmiAudio();
 
-// --- SIMULATION STATE ---
+// --- Simulation State ---
+const DIRT_THRESHOLD = 0.65;
+const AUTO_STOP_RADIUS = 96;
+const WARNING_RADIUS = 175;
+const CHASSIS_RADIUS = 44;
+
 const state = {
     excavator: {
         x: 0,
         y: 0,
-        heading: 0,         // Track heading (0 = North/Up)
-        cabAngle: 0,        // Upperstructure swing relative to tracks (radians)
-        cabSwingVel: 0,     // Smooth angular velocity for stepless cab swing
-        centeringCab: false,// Smooth auto-return to 0° when reset is triggered
+        heading: -Math.PI / 2, // Facing North initially
+        swingAngle: 0,          // Relative to chassis (radians)
+        swingVel: 0,
         speed: 0,
-        maxSpeed: 2.8,
-        turnSpeed: 0.035,
-        leftTrackOffset: 0, // Animated tread offset for visual feedback
-        rightTrackOffset: 0
+        trackPhase: 0,
+        swingCentering: false
     },
-    swingLimits: {
-        leftDeg: null,      // Max counter-clockwise swing angle in degrees (e.g. 90 => -90°)
-        rightDeg: null,     // Max clockwise swing angle in degrees (e.g. 90 => +90°)
-        hitSide: null       // 'left' | 'right' | null
+    swingLimit: {
+        leftDeg: null,          // null = OFF, or positive degrees e.g. 45, 90, 135
+        rightDeg: null,
+        hitLeft: false,
+        hitRight: false
     },
-    keys: {
-        up: false,
-        down: false,
+    controls: {
+        fwd: false,
+        rev: false,
         left: false,
         right: false,
         swingLeft: false,
         swingRight: false
     },
     cameras: {
-        front: { dirt: 0, blobs: [] },
-        rear:  { dirt: 0, blobs: [] },
-        left:  { dirt: 0, blobs: [] },
-        right: { dirt: 0, blobs: [] }
+        front: { dirt: 0, splatters: [], wasDirty: false },
+        rear:  { dirt: 0, splatters: [], wasDirty: false },
+        left:  { dirt: 0, splatters: [], wasDirty: false },
+        right: { dirt: 0, splatters: [], wasDirty: false }
     },
-    dirtThresholdWarn: 35,
-    dirtThresholdFail: 65,
-    prevSystemState: 'OK',
+    washerActive: false,
+    washerProgress: 0,
     emergencyBraking: false,
     autoStopBannerUntil: 0,
-    trackMarks: [],
+    collisionOccurred: false,
     workers: [],
-    raindrops: [],
-    mudSplashes: [],
-    washerWave: 0
+    tracks: [],
+    raindrops: []
 };
 
-// --- CANVAS SETUP ---
-const canvas = document.getElementById('cameraCanvas');
+// --- Canvas Setup ---
+const canvas = document.getElementById('simCanvas');
 const ctx = canvas.getContext('2d');
-let canvasW = 600;
-let canvasH = 400;
+let viewW = 540;
+let viewH = 500;
 
 function resizeCanvas() {
     const container = document.getElementById('cameraViewport');
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvasW = Math.max(100, rect.width);
-    canvasH = Math.max(100, rect.height);
-    canvas.width = canvasW * dpr;
-    canvas.height = canvasH * dpr;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    viewW = rect.width;
+    viewH = rect.height;
+    canvas.width = Math.round(viewW * dpr);
+    canvas.height = Math.round(viewH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 window.addEventListener('resize', resizeCanvas);
 
-// --- INITIALIZE ENVIRONMENT & DEFAULT 1 WORKER FAR AWAY ---
-function initEnvironment() {
-    resizeCanvas();
+// --- Initialize Rain & Site Workers ---
+function initRain() {
     state.raindrops = [];
-    for (let i = 0; i < 95; i++) {
+    for (let i = 0; i < 65; i++) {
         state.raindrops.push({
-            x: Math.random() * 1400,
-            y: Math.random() * 1000,
-            len: 12 + Math.random() * 16,
-            speed: 9 + Math.random() * 6
+            x: Math.random() * 600,
+            y: Math.random() * 600,
+            len: 10 + Math.random() * 14,
+            speed: 380 + Math.random() * 220
         });
     }
+}
 
-    state.mudSplashes = [];
-    for (let i = 0; i < 45; i++) {
-        state.mudSplashes.push({
-            x: (Math.random() - 0.5) * 2600,
-            y: (Math.random() - 0.5) * 2600,
-            r: 18 + Math.random() * 42
+function createWorker(farStart = true) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = farStart ? (290 + Math.random() * 70) : (230 + Math.random() * 110);
+    return {
+        x: state.excavator.x + Math.cos(angle) * dist,
+        y: state.excavator.y + Math.sin(angle) * dist,
+        vx: (Math.random() - 0.5) * 28,
+        vy: (Math.random() - 0.5) * 28,
+        walkPhase: Math.random() * Math.PI * 2,
+        turnTimer: 1.5 + Math.random() * 3,
+        struck: false,
+        respawnTimer: 0
+    };
+}
+
+function syncWorkerCount(targetCount) {
+    const clamped = Math.max(0, Math.min(8, targetCount));
+    while (state.workers.length < clamped) {
+        state.workers.push(createWorker(state.workers.length === 0));
+    }
+    while (state.workers.length > clamped) {
+        state.workers.pop();
+    }
+    document.getElementById('workerCountDisplay').textContent = state.workers.length;
+}
+
+function changeWorkerCount(delta) {
+    audio.init();
+    syncWorkerCount(state.workers.length + delta);
+}
+
+// --- Dirt & Washer Controls ---
+function addSplatterToSector(sectorKey, amount) {
+    const cam = state.cameras[sectorKey];
+    if (!cam) return;
+    cam.dirt = Math.min(1, cam.dirt + amount);
+
+    const count = Math.ceil(amount * 10);
+    for (let i = 0; i < count; i++) {
+        cam.splatters.push({
+            rFrac: 0.15 + Math.random() * 0.82,
+            aOffset: (Math.random() - 0.5) * (Math.PI * 0.44),
+            size: 14 + Math.random() * 28,
+            alpha: 0.45 + Math.random() * 0.4
         });
     }
-
-    // Default: 1 person starting safely far from the excavator
-    setWorkerCount(1);
-    updateHmiDirtStatus();
-    updateSwingLimitUI();
-}
-
-// --- SWING RESET & BOUNDARY LIMIT LOGIC ---
-function normalizeAngleRad(angle) {
-    let a = ((angle + Math.PI) % (Math.PI * 2));
-    if (a < 0) a += Math.PI * 2;
-    return a - Math.PI;
-}
-
-function resetCabSwing() {
-    hmiAudio.init();
-    state.excavator.cabAngle = normalizeAngleRad(state.excavator.cabAngle);
-    state.excavator.centeringCab = true;
-}
-
-function setSwingLimitPreset(leftDeg, rightDeg) {
-    hmiAudio.init();
-    state.swingLimits.leftDeg = leftDeg;
-    state.swingLimits.rightDeg = rightDeg;
-
-    if (leftDeg !== null || rightDeg !== null) {
-        state.excavator.cabAngle = normalizeAngleRad(state.excavator.cabAngle);
+    if (cam.splatters.length > 45) {
+        cam.splatters.splice(0, cam.splatters.length - 45);
     }
-    updateSwingLimitUI();
 }
 
-function adjustSideLimit(side, deltaDeg) {
-    hmiAudio.init();
-    const key = side === 'left' ? 'leftDeg' : 'rightDeg';
-    const current = state.swingLimits[key];
-
-    if (current === null) {
-        state.swingLimits[key] = 90;
-        state.excavator.cabAngle = normalizeAngleRad(state.excavator.cabAngle);
+function triggerDirtOnSector(target) {
+    audio.init();
+    if (target === 'all') {
+        ['front', 'rear', 'left', 'right'].forEach(k => addSplatterToSector(k, 0.45));
     } else {
-        const next = current + deltaDeg;
-        if (next > 175 || next < 15) {
-            state.swingLimits[key] = null;
-        } else {
-            state.swingLimits[key] = next;
-            state.excavator.cabAngle = normalizeAngleRad(state.excavator.cabAngle);
+        addSplatterToSector(target, 0.45);
+    }
+}
+
+function triggerCameraWash() {
+    audio.init();
+    state.washerActive = true;
+    state.washerProgress = 0;
+}
+
+// --- Swing Controls & Boundary Limit Logic ---
+function resetSwingToCenter() {
+    audio.init();
+    state.excavator.swingCentering = true;
+}
+
+function setSwingPreset(deg) {
+    audio.init();
+    state.swingLimit.leftDeg = deg;
+    state.swingLimit.rightDeg = deg;
+    updateSwingLimitUI();
+}
+
+function adjustBoundaryLimit(side, delta) {
+    audio.init();
+    const key = side === 'left' ? 'leftDeg' : 'rightDeg';
+    let cur = state.swingLimit[key];
+    if (cur === null) {
+        cur = delta > 0 ? 45 : 165;
+    } else {
+        cur += delta;
+        if (cur < 15 || cur > 175) {
+            cur = null;
         }
     }
+    state.swingLimit[key] = cur;
     updateSwingLimitUI();
 }
 
 function updateSwingLimitUI() {
-    const { leftDeg, rightDeg } = state.swingLimits;
-    const leftLabel = document.getElementById('leftLimitLabel');
-    const rightLabel = document.getElementById('rightLimitLabel');
-    if (leftLabel) leftLabel.textContent = leftDeg !== null ? `${leftDeg}°` : 'OFF';
-    if (rightLabel) rightLabel.textContent = rightDeg !== null ? `${rightDeg}°` : 'OFF';
+    const { leftDeg, rightDeg } = state.swingLimit;
+    document.getElementById('leftLimitDisplay').textContent = leftDeg === null ? 'OFF' : `${leftDeg}°`;
+    document.getElementById('rightLimitDisplay').textContent = rightDeg === null ? 'OFF' : `${rightDeg}°`;
+
+    const anyActive = leftDeg !== null || rightDeg !== null;
+    const dot = document.getElementById('swingLimitDot');
+    dot.className = anyActive ? 'w-2 h-2 rounded-full bg-orange-400 animate-pulse' : 'w-2 h-2 rounded-full bg-slate-500';
 
     const presets = [
-        { id: 'limit-off', active: leftDeg === null && rightDeg === null },
-        { id: 'limit-45', active: leftDeg === 45 && rightDeg === 45 },
-        { id: 'limit-90', active: leftDeg === 90 && rightDeg === 90 },
-        { id: 'limit-135', active: leftDeg === 135 && rightDeg === 135 }
+        { id: 'presetOff', val: null },
+        { id: 'preset45', val: 45 },
+        { id: 'preset90', val: 90 },
+        { id: 'preset135', val: 135 }
     ];
     presets.forEach(p => {
         const el = document.getElementById(p.id);
-        if (!el) return;
-        el.className = p.active
-            ? 'px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-orange-600 text-white border border-orange-400'
-            : 'px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600';
+        const active = leftDeg === p.val && rightDeg === p.val;
+        el.className = active
+            ? 'px-2 py-0.5 rounded text-[10px] font-bold bg-orange-600 text-white border border-orange-400 cursor-pointer'
+            : 'px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e2636] text-slate-300 border border-[#313e54] cursor-pointer';
     });
 }
 
-function syncBoundaryIndicators() {
-    const leftBar = document.getElementById('leftBoundaryBar');
-    const rightBar = document.getElementById('rightBoundaryBar');
-    if (!leftBar || !rightBar) return;
-
-    if (state.swingLimits.hitSide === 'left') {
-        leftBar.classList.remove('hidden');
-        rightBar.classList.add('hidden');
-    } else if (state.swingLimits.hitSide === 'right') {
-        rightBar.classList.remove('hidden');
-        leftBar.classList.add('hidden');
-    } else {
-        leftBar.classList.add('hidden');
-        rightBar.classList.add('hidden');
-    }
-}
-
-// --- WORKER MANAGEMENT ---
-function createFarWorker(index) {
-    const baseAngles = [-0.55, 2.4, 1.35, -1.9, 0.7, -2.7, 1.9, -1.1];
-    const angle = baseAngles[index % baseAngles.length] + (Math.random() - 0.5) * 0.25;
-    const dist = 285 + (index * 24);
-    const speed = 0.55 + Math.random() * 0.25;
-    const moveAngle = angle + Math.PI + (Math.random() - 0.5) * 0.9;
-
-    return {
-        id: index + 1,
-        x: state.excavator.x + Math.cos(angle) * dist,
-        y: state.excavator.y + Math.sin(angle) * dist,
-        vx: Math.cos(moveAngle) * speed,
-        vy: Math.sin(moveAngle) * speed,
-        detected: false,
-        sector: 'front',
-        walkPhase: Math.random() * Math.PI * 2
-    };
-}
-
-function setWorkerCount(count) {
-    const target = Math.max(0, Math.min(8, count));
-    while (state.workers.length < target) {
-        state.workers.push(createFarWorker(state.workers.length));
-    }
-    while (state.workers.length > target) {
-        state.workers.pop();
-    }
-    const displayEl = document.getElementById('workerCountDisplay');
-    if (displayEl) displayEl.textContent = String(state.workers.length);
-}
-
-function changeWorkerCount(delta) {
-    hmiAudio.init();
-    setWorkerCount(state.workers.length + delta);
-}
-
-// --- DIRT & CAMERA LOGIC ---
-function addDirtBlob(sector, amount) {
-    const cam = state.cameras[sector];
-    if (!cam) return;
-    cam.dirt = Math.min(100, cam.dirt + amount);
-
-    const targetBlobs = Math.floor(cam.dirt / 5);
-    while (cam.blobs.length < targetBlobs) {
-        cam.blobs.push({
-            u: (Math.random() - 0.5) * 1.65,
-            v: 0.22 + Math.random() * 0.76,
-            r: 14 + Math.random() * 28,
-            opacity: 0.55 + Math.random() * 0.35
-        });
-    }
-    updateHmiDirtStatus();
-}
-
-function triggerDirtOnSector(target) {
-    hmiAudio.init();
-    if (target === 'all') {
-        ['front', 'rear', 'left', 'right'].forEach(s => addDirtBlob(s, 75));
-    } else {
-        addDirtBlob(target, 75);
-    }
-}
-
-function cleanCameras() {
-    hmiAudio.playWashSound();
-    state.washerWave = 1.0;
-    ['front', 'rear', 'left', 'right'].forEach(s => {
-        state.cameras[s].dirt = 0;
-        state.cameras[s].blobs = [];
-    });
-    updateHmiDirtStatus();
-}
-
-function getSectorForAngle(relAngle) {
-    let a = ((relAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    if (a >= Math.PI * 1.75 || a < Math.PI * 0.25) return 'front';
-    if (a >= Math.PI * 0.25 && a < Math.PI * 0.75) return 'right';
-    if (a >= Math.PI * 0.75 && a < Math.PI * 1.25) return 'rear';
-    return 'left';
-}
-
-function updateHmiDirtStatus() {
-    const sectors = ['front', 'rear', 'left', 'right'];
-    const labels = { front: 'FRONT', rear: 'REAR', left: 'LEFT', right: 'RIGHT' };
-    const shortLabels = { front: 'F', rear: 'R', left: 'L', right: 'RGT' };
-
-    let degradedList = [];
-    let failedList = [];
-
-    sectors.forEach(s => {
-        const dirt = state.cameras[s].dirt;
-        const badge = document.getElementById(`badge-${s}`);
-        if (!badge) return;
-
-        if (dirt >= state.dirtThresholdFail) {
-            failedList.push(labels[s]);
-            badge.textContent = `${shortLabels[s]}:DIRT`;
-            badge.className = 'text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-red-950/90 text-red-300 border border-red-500/70';
-        } else if (dirt >= state.dirtThresholdWarn) {
-            degradedList.push(labels[s]);
-            badge.textContent = `${shortLabels[s]}:LOW`;
-            badge.className = 'text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-500/70';
-        } else {
-            badge.textContent = `${shortLabels[s]}:OK`;
-            badge.className = 'text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40';
+function resetCollisionState() {
+    state.collisionOccurred = false;
+    document.getElementById('collisionBanner').classList.add('hidden');
+    state.workers.forEach(w => {
+        if (w.struck) {
+            Object.assign(w, createWorker(true));
         }
     });
-
-    const pill = document.getElementById('autoStopPill');
-    const pillText = document.getElementById('autoStopPillText');
-    const alertBox = document.getElementById('dirtAlertOverlay');
-    const alertTitle = document.getElementById('dirtAlertTitle');
-    const alertMsg = document.getElementById('dirtAlertMsg');
-    const alertIconWrap = document.getElementById('dirtAlertIconWrap');
-
-    const affected = [...failedList, ...degradedList];
-    let currentSystemState = 'OK';
-
-    if (failedList.length > 0) {
-        currentSystemState = 'FAIL';
-        pill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-950/90 border border-red-500 text-red-200 transition-colors duration-200';
-        pillText.textContent = failedList.length === 4 ? 'AUTO STOP: OFF' : 'AUTO STOP: LIMITED';
-
-        alertBox.classList.remove('hidden');
-        alertBox.className = 'bg-[#191418]/95 border-2 border-red-500 rounded-xl px-3.5 py-2.5 flex items-center gap-3 shadow-2xl';
-        alertIconWrap.className = 'w-9 h-9 rounded-lg bg-red-500/20 border border-red-500/60 flex items-center justify-center shrink-0 text-red-400';
-        alertTitle.className = 'text-xs font-extrabold uppercase tracking-wide text-red-300';
-        alertTitle.textContent = `DIRTY CAMERA: ${affected.join(', ')}`;
-        alertMsg.textContent = failedList.length === 4
-            ? 'Auto Stop is disabled.'
-            : `Auto Stop is not working properly (${failedList.join(', ')}).`;
-    } else if (degradedList.length > 0) {
-        currentSystemState = 'WARN';
-        pill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-200 transition-colors duration-200';
-        pillText.textContent = 'AUTO STOP: LIMITED';
-
-        alertBox.classList.remove('hidden');
-        alertBox.className = 'bg-[#1a1814]/95 border-2 border-amber-500 rounded-xl px-3.5 py-2.5 flex items-center gap-3 shadow-2xl';
-        alertIconWrap.className = 'w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/60 flex items-center justify-center shrink-0 text-amber-400';
-        alertTitle.className = 'text-xs font-extrabold uppercase tracking-wide text-amber-300';
-        alertTitle.textContent = `DIRTY CAMERA: ${degradedList.join(', ')}`;
-        alertMsg.textContent = 'Auto Stop is not working properly.';
-    } else {
-        currentSystemState = 'OK';
-        pill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/70 text-emerald-300 transition-colors duration-200';
-        pillText.textContent = 'AUTO STOP: ON';
-        alertBox.classList.add('hidden');
-    }
-
-    if (currentSystemState !== 'OK' && state.prevSystemState === 'OK') {
-        hmiAudio.playDirtDegradeChime();
-    }
-    state.prevSystemState = currentSystemState;
-    syncCenterAutoStopIcon();
 }
 
-// --- TOP CENTER ROUND AUTO STOP ICON SYNC ---
-function syncCenterAutoStopIcon() {
-    const iconWrap = document.getElementById('centerAutoStopIcon');
-    const iconSvg = document.getElementById('centerAutoStopSvg');
-    if (!iconWrap || !iconSvg) return;
+// --- GitHub Direct Update Function ---
+async function fetchLatestFromGitHub() {
+    const statusEl = document.getElementById('updateStatusText');
+    const btn = document.getElementById('btnGitHubUpdate');
+    btn.disabled = true;
+    statusEl.textContent = 'Checking GitHub...';
+    statusEl.className = 'text-[10px] text-sky-400 truncate';
 
-    if (state.emergencyBraking) {
-        iconWrap.className = 'absolute top-2.5 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-red-600 border-2 border-white flex items-center justify-center z-20 pointer-events-none auto-stop-icon-triggered';
-        iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>`;
-    } else if (state.prevSystemState === 'FAIL') {
-        iconWrap.className = 'absolute top-2.5 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-red-950/95 border-2 border-red-500 shadow-lg flex items-center justify-center z-20 transition-colors duration-200 pointer-events-none';
-        iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M18.364 5.636l-12.728 12.728M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>`;
-    } else if (state.prevSystemState === 'WARN') {
-        iconWrap.className = 'absolute top-2.5 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-amber-600/95 border-2 border-amber-200 shadow-lg flex items-center justify-center z-20 transition-colors duration-200 pointer-events-none';
-        iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>`;
-    } else {
-        iconWrap.className = 'absolute top-2.5 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-emerald-600/95 border-2 border-emerald-200 shadow-lg flex items-center justify-center z-20 transition-colors duration-200 pointer-events-none';
-        iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>`;
+    try {
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+        }
+        statusEl.textContent = 'Reloading latest...';
+        setTimeout(() => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('v', Date.now().toString());
+            window.location.replace(url.toString());
+        }, 450);
+    } catch (err) {
+        statusEl.textContent = 'Reloading...';
+        window.location.reload();
     }
 }
 
-// --- CONTROLS: KEYBOARD + TOUCH ---
-function bindControlButton(id, keyName) {
-    const el = document.getElementById(id);
-    if (!el) return;
+// --- Determine Which Camera Sector Covers a World Angle ---
+function getSectorForWorldAngle(worldAngle) {
+    // Camera stitch aligns with excavator upper house (heading + swingAngle)
+    const cabAngle = state.excavator.heading + state.excavator.swingAngle;
+    let rel = worldAngle - cabAngle;
+    while (rel > Math.PI) rel -= Math.PI * 2;
+    while (rel < -Math.PI) rel += Math.PI * 2;
 
-    const press = (e) => {
-        e.preventDefault();
-        hmiAudio.init();
-        state.keys[keyName] = true;
-        el.classList.add('active-press');
-    };
-    const release = (e) => {
-        if (e) e.preventDefault();
-        state.keys[keyName] = false;
-        el.classList.remove('active-press');
-    };
-
-    el.addEventListener('mousedown', press);
-    el.addEventListener('mouseup', release);
-    el.addEventListener('mouseleave', release);
-    el.addEventListener('touchstart', press, { passive: false });
-    el.addEventListener('touchend', release, { passive: false });
-    el.addEventListener('touchcancel', release, { passive: false });
+    if (rel >= -Math.PI * 0.25 && rel < Math.PI * 0.25) return 'front';
+    if (rel >= Math.PI * 0.25 && rel < Math.PI * 0.75) return 'right';
+    if (rel >= -Math.PI * 0.75 && rel < -Math.PI * 0.25) return 'left';
+    return 'rear';
 }
 
-bindControlButton('btn-up', 'up');
-bindControlButton('btn-down', 'down');
-bindControlButton('btn-left', 'left');
-bindControlButton('btn-right', 'right');
-bindControlButton('btn-swing-left', 'swingLeft');
-bindControlButton('btn-swing-right', 'swingRight');
-
-window.addEventListener('keydown', (e) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
-        e.preventDefault();
-    }
-    hmiAudio.init();
-    if (e.code === 'KeyW' || e.code === 'ArrowUp') { state.keys.up = true; setBtnActive('btn-up', true); }
-    if (e.code === 'KeyS' || e.code === 'ArrowDown') { state.keys.down = true; setBtnActive('btn-down', true); }
-    if (e.code === 'KeyA' || e.code === 'ArrowLeft') { state.keys.left = true; setBtnActive('btn-left', true); }
-    if (e.code === 'KeyD' || e.code === 'ArrowRight') { state.keys.right = true; setBtnActive('btn-right', true); }
-    if (e.code === 'KeyQ') { state.keys.swingLeft = true; setBtnActive('btn-swing-left', true); }
-    if (e.code === 'KeyE') { state.keys.swingRight = true; setBtnActive('btn-swing-right', true); }
-    if (e.code === 'KeyC') { resetCabSwing(); }
-    if (e.code === 'Space') { cleanCameras(); }
-});
-
-window.addEventListener('keyup', (e) => {
-    if (e.code === 'KeyW' || e.code === 'ArrowUp') { state.keys.up = false; setBtnActive('btn-up', false); }
-    if (e.code === 'KeyS' || e.code === 'ArrowDown') { state.keys.down = false; setBtnActive('btn-down', false); }
-    if (e.code === 'KeyA' || e.code === 'ArrowLeft') { state.keys.left = false; setBtnActive('btn-left', false); }
-    if (e.code === 'KeyD' || e.code === 'ArrowRight') { state.keys.right = false; setBtnActive('btn-right', false); }
-    if (e.code === 'KeyQ') { state.keys.swingLeft = false; setBtnActive('btn-swing-left', false); }
-    if (e.code === 'KeyE') { state.keys.swingRight = false; setBtnActive('btn-swing-right', false); }
-});
-
-function setBtnActive(id, active) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (active) el.classList.add('active-press');
-    else el.classList.remove('active-press');
-}
-
-// --- SIMULATION LOOP ---
-let lastTrackDropX = 0;
-let lastTrackDropY = 0;
-
-function updateSimulation() {
+// --- Update Simulation Physics & Safety Logic ---
+function updateSimulation(dt) {
     const ex = state.excavator;
-    const stopZoneRadius = 96;
-    const machinePhysicalRadius = 46;
 
-    // 1. Pre-check whether any detected person is inside the Auto Stop range
-    let personInDangerZone = false;
+    // 1. Auto Mud Accumulation during Simulated Rain
+    const autoMudEnabled = document.getElementById('autoDirtToggle')?.checked;
+    if (autoMudEnabled && !state.washerActive) {
+        const sectors = ['front', 'rear', 'left', 'right'];
+        const activeSector = sectors[Math.floor((performance.now() / 4000) % 4)];
+        if (Math.random() < dt * 0.55) {
+            addSplatterToSector(activeSector, 0.045);
+        }
+    }
+
+    // 2. Camera Washer Cycle
+    if (state.washerActive) {
+        state.washerProgress += dt * 1.15;
+        ['front', 'rear', 'left', 'right'].forEach(k => {
+            state.cameras[k].dirt = Math.max(0, state.cameras[k].dirt - dt * 1.35);
+            if (state.cameras[k].dirt <= 0.02) {
+                state.cameras[k].splatters = [];
+            }
+        });
+        if (state.washerProgress >= 1) {
+            state.washerActive = false;
+            state.washerProgress = 0;
+        }
+    }
+
+    // 3. Evaluate Workers, Detection & Auto Stop Zone
+    let detectedPersonInDangerZone = false;
+    const isMoving = Math.abs(ex.speed) > 1.5 || Math.abs(ex.swingVel) > 0.05 ||
+                     state.controls.fwd || state.controls.rev ||
+                     state.controls.left || state.controls.right ||
+                     state.controls.swingLeft || state.controls.swingRight;
+
     for (const w of state.workers) {
+        if (w.struck) {
+            w.respawnTimer -= dt;
+            if (w.respawnTimer <= 0) {
+                Object.assign(w, createWorker(true));
+            }
+            continue;
+        }
+
+        // Wander movement
+        w.turnTimer -= dt;
+        if (w.turnTimer <= 0) {
+            w.turnTimer = 1.8 + Math.random() * 2.5;
+            const toExc = Math.atan2(ex.y - w.y, ex.x - w.x);
+            const wanderAngle = Math.random() < 0.55 ? toExc + (Math.random() - 0.5) * 1.1 : Math.random() * Math.PI * 2;
+            const spd = 22 + Math.random() * 14;
+            w.vx = Math.cos(wanderAngle) * spd;
+            w.vy = Math.sin(wanderAngle) * spd;
+        }
+
+        w.x += w.vx * dt;
+        w.y += w.vy * dt;
+        w.walkPhase += dt * 6;
+
+        // Keep workers within visible work perimeter
         const dx = w.x - ex.x;
         const dy = w.y - ex.y;
         const dist = Math.hypot(dx, dy);
-        const worldAngle = Math.atan2(dy, dx) + Math.PI / 2;
-        const relAngle = worldAngle - ex.heading;
-        const sector = getSectorForAngle(relAngle);
-        const camDirt = state.cameras[sector].dirt;
-        const canDetect = camDirt < state.dirtThresholdFail;
+        if (dist > 390) {
+            const backAngle = Math.atan2(ex.y - w.y, ex.x - w.x);
+            w.vx = Math.cos(backAngle) * 28;
+            w.vy = Math.sin(backAngle) * 28;
+        }
 
-        if (canDetect && dist < stopZoneRadius) {
-            personInDangerZone = true;
-            break;
+        // Determine if camera covering this worker is clean enough to detect them
+        const angleToWorker = Math.atan2(dy, dx);
+        const sector = getSectorForWorldAngle(angleToWorker);
+        const cameraBlinded = state.cameras[sector].dirt >= DIRT_THRESHOLD;
+        w.detected = !cameraBlinded && dist < 260;
+
+        // Auto Stop checks ONLY when camera is NOT blinded by dirt
+        if (!cameraBlinded && dist <= AUTO_STOP_RADIUS) {
+            detectedPersonInDangerZone = true;
+        }
+
+        // Physical body collision if camera was blinded by dirt and excavator drives into person
+        if (dist < CHASSIS_RADIUS) {
+            if (cameraBlinded && Math.abs(ex.speed) > 8) {
+                w.struck = true;
+                w.respawnTimer = 6.0;
+                ex.speed = 0;
+                state.collisionOccurred = true;
+                document.getElementById('collisionBanner').classList.remove('hidden');
+                audio.playCollisionImpact();
+            } else {
+                // Push worker physically outside chassis hull so they never walk under the machine
+                const nx = dist > 0.01 ? dx / dist : 1;
+                const ny = dist > 0.01 ? dy / dist : 0;
+                w.x = ex.x + nx * (CHASSIS_RADIUS + 2);
+                w.y = ex.y + ny * (CHASSIS_RADIUS + 2);
+                w.vx = nx * 24;
+                w.vy = ny * 24;
+            }
         }
     }
 
-    // Machine driving & swinging stay completely locked until person is outside Auto Stop range
-    if (!personInDangerZone) {
+    // 4. Auto Stop Engagement & 3-Second Minimum Banner Timer
+    if (detectedPersonInDangerZone && (isMoving || state.emergencyBraking)) {
+        if (!state.emergencyBraking) {
+            audio.playAutoStopAlarm();
+        }
+        state.emergencyBraking = true;
+        state.autoStopBannerUntil = Math.max(state.autoStopBannerUntil, performance.now() + 3000);
+    } else if (!detectedPersonInDangerZone) {
         state.emergencyBraking = false;
     }
 
-    // 2. Excavator movement & track animation
-    if (state.emergencyBraking) {
-        ex.speed = 0;
+    const bannerEl = document.getElementById('emergencyBrakeBanner');
+    if (state.emergencyBraking || performance.now() < state.autoStopBannerUntil) {
+        bannerEl.classList.remove('hidden');
     } else {
-        if (state.keys.up) {
-            ex.speed = Math.min(ex.maxSpeed, ex.speed + 0.14);
-        } else if (state.keys.down) {
-            ex.speed = Math.max(-ex.maxSpeed * 0.75, ex.speed - 0.14);
+        bannerEl.classList.add('hidden');
+    }
+
+    // 5. Excavator Track Drive & Smooth Swing Kinematics
+    if (state.emergencyBraking || state.collisionOccurred) {
+        ex.speed = 0;
+        ex.swingVel = 0;
+        ex.swingCentering = false;
+    } else {
+        // Track Steering
+        const turnRate = 1.45;
+        if (state.controls.left) ex.heading -= turnRate * dt;
+        if (state.controls.right) ex.heading += turnRate * dt;
+
+        // Forward / Reverse Acceleration
+        const maxSpeed = 88;
+        if (state.controls.fwd) {
+            ex.speed = Math.min(maxSpeed, ex.speed + 180 * dt);
+        } else if (state.controls.rev) {
+            ex.speed = Math.max(-maxSpeed * 0.75, ex.speed - 180 * dt);
         } else {
-            ex.speed *= 0.86;
-            if (Math.abs(ex.speed) < 0.03) ex.speed = 0;
+            ex.speed *= Math.pow(0.04, dt);
+            if (Math.abs(ex.speed) < 0.5) ex.speed = 0;
         }
 
-        let turnInput = 0;
-        if (state.keys.left) {
-            ex.heading -= ex.turnSpeed;
-            turnInput = -1;
-        }
-        if (state.keys.right) {
-            ex.heading += ex.turnSpeed;
-            turnInput = 1;
+        // Move Excavator in World Space
+        if (Math.abs(ex.speed) > 0.1) {
+            ex.x += Math.cos(ex.heading) * ex.speed * dt;
+            ex.y += Math.sin(ex.heading) * ex.speed * dt;
+            ex.trackPhase += ex.speed * dt * 0.25;
+
+            // Record muddy track imprints
+            if (state.tracks.length === 0 || Math.hypot(ex.x - state.tracks[state.tracks.length - 1].x, ex.y - state.tracks[state.tracks.length - 1].y) > 10) {
+                state.tracks.push({ x: ex.x, y: ex.y, heading: ex.heading, alpha: 0.45 });
+                if (state.tracks.length > 90) state.tracks.shift();
+            }
+        } else if (state.controls.left || state.controls.right) {
+            ex.trackPhase += (state.controls.right ? 1 : -1) * dt * 12;
         }
 
-        // Smooth, stepless upperstructure swing (left & right with hydraulic inertia, reset & boundary limits)
-        if (state.keys.swingLeft || state.keys.swingRight) {
-            ex.centeringCab = false;
-        }
-
-        let targetSwingVel = 0;
-        if (ex.centeringCab) {
-            const diff = -ex.cabAngle;
-            if (Math.abs(diff) < 0.012) {
-                ex.cabAngle = 0;
-                ex.cabSwingVel = 0;
-                ex.centeringCab = false;
+        // Smooth Stepless Upper-Structure Swing
+        const maxSwingSpeed = 1.55; // rad/s
+        if (state.controls.swingLeft || state.controls.swingRight) {
+            ex.swingCentering = false;
+            const targetVel = (state.controls.swingRight ? 1 : 0) - (state.controls.swingLeft ? 1 : 0);
+            ex.swingVel += (targetVel * maxSwingSpeed - ex.swingVel) * Math.min(1, dt * 10);
+        } else if (ex.swingCentering) {
+            if (Math.abs(ex.swingAngle) < 0.02) {
+                ex.swingAngle = 0;
+                ex.swingVel = 0;
+                ex.swingCentering = false;
             } else {
-                targetSwingVel = Math.max(-0.055, Math.min(0.055, diff * 0.16));
+                const dir = ex.swingAngle > 0 ? -1 : 1;
+                ex.swingVel = dir * Math.min(maxSwingSpeed, Math.abs(ex.swingAngle) * 4.5 + 0.35);
             }
         } else {
-            if (state.keys.swingLeft) targetSwingVel -= 0.042;
-            if (state.keys.swingRight) targetSwingVel += 0.042;
+            ex.swingVel *= Math.pow(0.01, dt);
+            if (Math.abs(ex.swingVel) < 0.01) ex.swingVel = 0;
         }
 
-        ex.cabSwingVel += (targetSwingVel - ex.cabSwingVel) * 0.22;
-        if (Math.abs(ex.cabSwingVel) < 0.0002) ex.cabSwingVel = 0;
-        ex.cabAngle += ex.cabSwingVel;
+        ex.swingAngle += ex.swingVel * dt;
 
-        // Enforce Left / Right Swing Boundary Limits
-        let hitSide = null;
-        const prevHitSide = state.swingLimits.hitSide;
-        if (state.swingLimits.leftDeg !== null) {
-            const minRad = -(state.swingLimits.leftDeg * Math.PI) / 180;
-            if (ex.cabAngle <= minRad + 0.002) {
-                ex.cabAngle = minRad;
-                if (ex.cabSwingVel < 0) ex.cabSwingVel = 0;
-                hitSide = 'left';
+        // Normalize swingAngle to [-PI, PI]
+        while (ex.swingAngle > Math.PI) ex.swingAngle -= Math.PI * 2;
+        while (ex.swingAngle < -Math.PI) ex.swingAngle += Math.PI * 2;
+
+        // Enforce Left & Right Swing Boundary Limits
+        state.swingLimit.hitLeft = false;
+        state.swingLimit.hitRight = false;
+
+        if (state.swingLimit.leftDeg !== null) {
+            const minRad = -(state.swingLimit.leftDeg * Math.PI) / 180;
+            if (ex.swingAngle <= minRad) {
+                ex.swingAngle = minRad;
+                if (ex.swingVel < 0) {
+                    ex.swingVel = 0;
+                    audio.playBoundaryBump();
+                }
+                state.swingLimit.hitLeft = true;
             }
         }
-        if (state.swingLimits.rightDeg !== null) {
-            const maxRad = (state.swingLimits.rightDeg * Math.PI) / 180;
-            if (ex.cabAngle >= maxRad - 0.002) {
-                ex.cabAngle = maxRad;
-                if (ex.cabSwingVel > 0) ex.cabSwingVel = 0;
-                hitSide = 'right';
+
+        if (state.swingLimit.rightDeg !== null) {
+            const maxRad = (state.swingLimit.rightDeg * Math.PI) / 180;
+            if (ex.swingAngle >= maxRad) {
+                ex.swingAngle = maxRad;
+                if (ex.swingVel > 0) {
+                    ex.swingVel = 0;
+                    audio.playBoundaryBump();
+                }
+                state.swingLimit.hitRight = true;
             }
         }
-        state.swingLimits.hitSide = hitSide;
-        if (hitSide && hitSide !== prevHitSide) {
-            hmiAudio.playBoundaryLimit();
-        }
-        syncBoundaryIndicators();
-
-        // Update live cab swing angle readout
-        const degDisplay = Math.round((normalizeAngleRad(ex.cabAngle) * 180) / Math.PI);
-        const angleEl = document.getElementById('cabAngleReadout');
-        if (angleEl) {
-            angleEl.textContent = `${degDisplay > 0 ? '+' : ''}${degDisplay}°`;
-            angleEl.className = hitSide
-                ? 'text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-orange-500 text-slate-950 border border-orange-300'
-                : 'text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700';
-        }
-
-        // Animate caterpillar track links clearly when driving or counter-rotating
-        ex.leftTrackOffset += ex.speed + turnInput * 1.4;
-        ex.rightTrackOffset += ex.speed - turnInput * 1.4;
     }
 
-    const vx = Math.sin(ex.heading) * ex.speed;
-    const vy = -Math.cos(ex.heading) * ex.speed;
-    ex.x += vx;
-    ex.y += vy;
-
-    // Leave visible caterpillar track impressions in the wet ground
-    if (Math.hypot(ex.x - lastTrackDropX, ex.y - lastTrackDropY) > 14) {
-        lastTrackDropX = ex.x;
-        lastTrackDropY = ex.y;
-        state.trackMarks.push({ x: ex.x, y: ex.y, heading: ex.heading, alpha: 0.45 });
-        if (state.trackMarks.length > 70) state.trackMarks.shift();
+    // Fade track marks slowly
+    for (let i = state.tracks.length - 1; i >= 0; i--) {
+        state.tracks[i].alpha -= dt * 0.018;
+        if (state.tracks[i].alpha <= 0) state.tracks.splice(i, 1);
     }
 
-    // Update speed readout
-    const kmh = (Math.abs(ex.speed) * 2.4).toFixed(1);
+    // Update Rain
+    for (const r of state.raindrops) {
+        r.x -= r.speed * 0.18 * dt;
+        r.y += r.speed * dt;
+        if (r.y > viewH + 20) {
+            r.y = -20;
+            r.x = Math.random() * (viewW + 80);
+        }
+    }
+
+    updateHmiStatusUI();
+}
+
+// --- Synchronize HMI Badges, Icons & Alerts ---
+function updateHmiStatusUI() {
+    const ex = state.excavator;
+    const kmh = (Math.abs(ex.speed) / 88 * 5.2).toFixed(1);
     document.getElementById('speedReadout').textContent = `${kmh} km/h`;
 
-    // 3. Gradual mud splatter buildup while driving in rain
-    const autoDirt = document.getElementById('autoDirtToggle').checked;
-    if (autoDirt && (Math.abs(ex.speed) > 0.25 || state.keys.left || state.keys.right)) {
-        if (Math.random() < 0.03) {
-            const targetCam = ex.speed >= 0
-                ? (Math.random() < 0.7 ? 'front' : (Math.random() < 0.5 ? 'left' : 'right'))
-                : 'rear';
-            addDirtBlob(targetCam, 1.3);
+    const deg = Math.round((ex.swingAngle * 180) / Math.PI);
+    document.getElementById('swingAngleBadge').textContent = `${deg > 0 ? '+' : ''}${deg}°`;
+
+    // Left / Right Orange Boundary Bars
+    document.getElementById('leftBoundaryBar').classList.toggle('hidden', !state.swingLimit.hitLeft);
+    document.getElementById('rightBoundaryBar').classList.toggle('hidden', !state.swingLimit.hitRight);
+
+    // Individual Camera Health Pills & Dirty Sector List
+    const sectorMeta = [
+        { key: 'front', short: 'F', label: 'FRONT', el: document.getElementById('camBadgeFront') },
+        { key: 'rear',  short: 'R', label: 'REAR',  el: document.getElementById('camBadgeRear') },
+        { key: 'left',  short: 'L', label: 'LEFT',  el: document.getElementById('camBadgeLeft') },
+        { key: 'right', short: 'RGT', label: 'RIGHT', el: document.getElementById('camBadgeRight') }
+    ];
+
+    const dirtyNames = [];
+    let newlyDirty = false;
+
+    sectorMeta.forEach(s => {
+        const cam = state.cameras[s.key];
+        const isDirty = cam.dirt >= DIRT_THRESHOLD;
+        if (isDirty) {
+            dirtyNames.push(s.label);
+            if (!cam.wasDirty) newlyDirty = true;
+            s.el.textContent = `${s.short}:DIRT`;
+            s.el.className = 'px-1.5 py-0.5 rounded bg-red-950/95 text-red-300 border border-red-500/80';
+        } else {
+            s.el.textContent = `${s.short}:OK`;
+            s.el.className = 'px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-600/60';
         }
+        cam.wasDirty = isDirty;
+    });
+
+    if (newlyDirty) {
+        audio.playDirtChime();
     }
 
-    // 4. Update workers, enforce physical machine collision & check Auto Stop
-    let dangerTriggeredThisFrame = false;
-
-    for (const w of state.workers) {
-        w.x += w.vx;
-        w.y += w.vy;
-        w.walkPhase += 0.14;
-
-        let dx = w.x - ex.x;
-        let dy = w.y - ex.y;
-        let dist = Math.hypot(dx, dy);
-
-        // Prevent workers from walking underneath/through the excavator body
-        if (dist < machinePhysicalRadius) {
-            const pushAngle = dist > 0.001 ? Math.atan2(dy, dx) : Math.random() * Math.PI * 2;
-            w.x = ex.x + Math.cos(pushAngle) * machinePhysicalRadius;
-            w.y = ex.y + Math.sin(pushAngle) * machinePhysicalRadius;
-
-            const nx = Math.cos(pushAngle);
-            const ny = Math.sin(pushAngle);
-            const dot = w.vx * nx + w.vy * ny;
-            if (dot < 0) {
-                w.vx -= 2 * dot * nx;
-                w.vy -= 2 * dot * ny;
-            }
-            dx = w.x - ex.x;
-            dy = w.y - ex.y;
-            dist = machinePhysicalRadius;
-        }
-
-        // Keep workers patrolling within reasonable range of the machine
-        if (dist > 390) {
-            const angleToEx = Math.atan2(ex.y - w.y, ex.x - w.x) + (Math.random() - 0.5) * 0.65;
-            const spd = Math.hypot(w.vx, w.vy) || 0.65;
-            w.vx = Math.cos(angleToEx) * spd;
-            w.vy = Math.sin(angleToEx) * spd;
-        }
-
-        const worldAngle = Math.atan2(dy, dx) + Math.PI / 2;
-        const relAngle = worldAngle - ex.heading;
-        const sector = getSectorForAngle(relAngle);
-        w.sector = sector;
-
-        const camDirt = state.cameras[sector].dirt;
-        const canDetect = camDirt < state.dirtThresholdFail;
-        w.detected = canDetect && dist < 245;
-
-        const machineMoving = Math.abs(ex.speed) > 0.15 || state.keys.up || state.keys.down || state.keys.left || state.keys.right || Math.abs(ex.cabSwingVel) > 0.002;
-        if (canDetect && dist < stopZoneRadius && (machineMoving || state.emergencyBraking)) {
-            dangerTriggeredThisFrame = true;
-        }
+    // Simple Dirt Alert Banner (Shows specific dirty camera(s) & that Auto Stop isn't working properly)
+    const dirtBanner = document.getElementById('dirtAlertBanner');
+    if (dirtyNames.length > 0) {
+        dirtBanner.classList.remove('hidden');
+        const camList = dirtyNames.length === 4 ? 'ALL 360° CAMERAS' : `${dirtyNames.join(' & ')} CAMERA${dirtyNames.length > 1 ? 'S' : ''}`;
+        document.getElementById('dirtAlertTitle').textContent = `${camList} DIRTY`;
+        document.getElementById('dirtAlertSub').textContent = dirtyNames.length === 4
+            ? 'Auto Stop is disabled.'
+            : 'Auto Stop is not working properly.';
+    } else {
+        dirtBanner.classList.add('hidden');
     }
 
-    if (dangerTriggeredThisFrame) {
-        if (!state.emergencyBraking) {
-            state.emergencyBraking = true;
-            ex.speed = 0;
-            hmiAudio.playAutoStopAlert();
-        }
-        state.autoStopBannerUntil = Math.max(state.autoStopBannerUntil, Date.now() + 3000);
-    } else if (!personInDangerZone) {
-        state.emergencyBraking = false;
-    }
+    // Top Header Pill & Top-Center Round Icon State
+    const headerPill = document.getElementById('autoStopHeaderPill');
+    const headerText = document.getElementById('autoStopHeaderText');
+    const centerIcon = document.getElementById('centerAutoStopIcon');
 
-    // Banner stays visible for at least 3 seconds OR until the person leaves the red Auto Stop range
-    const showAutoStopBanner = state.emergencyBraking || Date.now() < state.autoStopBannerUntil;
-    document.getElementById('emergencyBrakeBanner').classList.toggle('hidden', !showAutoStopBanner);
-    syncCenterAutoStopIcon();
-
-    // Raindrops
-    for (const r of state.raindrops) {
-        r.x -= 2.2;
-        r.y += r.speed;
-        if (r.y > canvasH) { r.y = -20; r.x = Math.random() * (canvasW + 100); }
-        if (r.x < -30) { r.x = canvasW + 20; }
-    }
-
-    if (state.washerWave > 0) {
-        state.washerWave = Math.max(0, state.washerWave - 0.035);
+    if (state.emergencyBraking) {
+        headerPill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-400 bg-red-600 text-white text-[11px] font-extrabold tracking-wide';
+        headerText.textContent = 'AUTO STOP: ACTIVE';
+        centerIcon.className = 'absolute top-2.5 w-11 h-11 rounded-full bg-red-600 border-2 border-white shadow-lg flex items-center justify-center z-20 pointer-events-none auto-stop-icon-triggered';
+    } else if (dirtyNames.length === 4) {
+        headerPill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-500/70 bg-red-950/85 text-red-300 text-[11px] font-extrabold tracking-wide';
+        headerText.textContent = 'AUTO STOP: OFF';
+        centerIcon.className = 'absolute top-2.5 w-11 h-11 rounded-full bg-red-900/95 border-2 border-red-400 shadow-lg flex items-center justify-center z-20 pointer-events-none';
+    } else if (dirtyNames.length > 0) {
+        headerPill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-500/70 bg-amber-950/85 text-amber-300 text-[11px] font-extrabold tracking-wide';
+        headerText.textContent = 'AUTO STOP: LIMITED';
+        centerIcon.className = 'absolute top-2.5 w-11 h-11 rounded-full bg-amber-600/95 border-2 border-amber-200 shadow-lg flex items-center justify-center z-20 pointer-events-none';
+    } else {
+        headerPill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/50 bg-emerald-950/70 text-emerald-300 text-[11px] font-extrabold tracking-wide';
+        headerText.textContent = 'AUTO STOP: ON';
+        centerIcon.className = 'absolute top-2.5 w-11 h-11 rounded-full bg-emerald-600/95 border-2 border-emerald-200 shadow-lg flex items-center justify-center z-20 pointer-events-none';
     }
 }
 
-// --- RENDERING 360° STITCHED CAMERA VIEW ---
-function renderCameraView() {
-    ctx.clearRect(0, 0, canvasW, canvasH);
-
-    const cx = canvasW / 2;
-    const cy = canvasH / 2 + 6;
+// --- Render 360° Top-Down Stitched Camera Canvas ---
+function renderSimulation() {
+    const cx = viewW / 2;
+    const cy = viewH / 2;
     const ex = state.excavator;
+    const cabAngle = ex.heading + ex.swingAngle;
 
-    // 1. Ground & Muddy Terrain
-    ctx.fillStyle = '#181615';
-    ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.clearRect(0, 0, viewW, viewH);
+
+    // 1. Ground Terrain & Scrolling Grid (gives clear sensation of driving)
+    ctx.fillStyle = '#1b1815';
+    ctx.fillRect(0, 0, viewW, viewH);
 
     const gridSize = 64;
     const offsetX = ((-ex.x % gridSize) + gridSize) % gridSize;
     const offsetY = ((-ex.y % gridSize) + gridSize) % gridSize;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
     ctx.lineWidth = 1;
-    for (let x = offsetX; x < canvasW; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
-    }
-    for (let y = offsetY; y < canvasH; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke();
-    }
-
-    // Terrain mud patches
-    ctx.fillStyle = 'rgba(68, 52, 38, 0.36)';
-    for (const p of state.mudSplashes) {
-        const sx = cx + (p.x - ex.x);
-        const sy = cy + (p.y - ex.y);
-        if (sx > -80 && sx < canvasW + 80 && sy > -80 && sy < canvasH + 80) {
-            ctx.beginPath();
-            ctx.arc(sx, sy, p.r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    // Caterpillar track marks left on ground
-    for (const tm of state.trackMarks) {
-        const sx = cx + (tm.x - ex.x);
-        const sy = cy + (tm.y - ex.y);
-        if (sx > -60 && sx < canvasW + 60 && sy > -60 && sy < canvasH + 60) {
-            ctx.save();
-            ctx.translate(sx, sy);
-            ctx.rotate(tm.heading);
-            ctx.fillStyle = 'rgba(10, 9, 8, 0.45)';
-            ctx.fillRect(-25, -4, 11, 8);
-            ctx.fillRect(14, -4, 11, 8);
-            ctx.restore();
-        }
-    }
-
-    // 2. Safety & Auto Stop Zone Rings
-    const stopRadius = 96;
-    const cautionRadius = 175;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, stopRadius, 0, Math.PI * 2);
-    ctx.fillStyle = state.emergencyBraking ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.08)';
-    ctx.fill();
-    ctx.setLineDash([6, 5]);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = state.emergencyBraking ? '#ef4444' : 'rgba(239, 68, 68, 0.55)';
-    ctx.stroke();
-
-    // Outer advisory ring
-    ctx.beginPath();
-    ctx.arc(cx, cy, cautionRadius, 0, Math.PI * 2);
-    ctx.setLineDash([3, 6]);
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.32)';
-    ctx.stroke();
-
-    // Swing Boundary Limit Arc & Sector Guides (relative to undercarriage heading)
-    if (state.swingLimits.leftDeg !== null || state.swingLimits.rightDeg !== null) {
-        const limitRadius = 124;
-        const leftRad = state.swingLimits.leftDeg !== null ? (state.swingLimits.leftDeg * Math.PI) / 180 : Math.PI;
-        const rightRad = state.swingLimits.rightDeg !== null ? (state.swingLimits.rightDeg * Math.PI) / 180 : Math.PI;
-        const startArc = ex.heading - Math.PI / 2 - leftRad;
-        const endArc = ex.heading - Math.PI / 2 + rightRad;
-
+    for (let x = offsetX; x < viewW; x += gridSize) {
         ctx.beginPath();
-        ctx.arc(cx, cy, limitRadius, startArc, endArc);
-        ctx.setLineDash([]);
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = 'rgba(249, 115, 22, 0.55)';
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, viewH);
         ctx.stroke();
-
-        if (state.swingLimits.leftDeg !== null) {
-            ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(startArc) * 44, cy + Math.sin(startArc) * 44);
-            ctx.lineTo(cx + Math.cos(startArc) * (limitRadius + 14), cy + Math.sin(startArc) * (limitRadius + 14));
-            ctx.lineWidth = state.swingLimits.hitSide === 'left' ? 3.5 : 2;
-            ctx.strokeStyle = state.swingLimits.hitSide === 'left' ? '#fb923c' : 'rgba(249, 115, 22, 0.75)';
-            ctx.stroke();
-        }
-
-        if (state.swingLimits.rightDeg !== null) {
-            ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(endArc) * 44, cy + Math.sin(endArc) * 44);
-            ctx.lineTo(cx + Math.cos(endArc) * (limitRadius + 14), cy + Math.sin(endArc) * (limitRadius + 14));
-            ctx.lineWidth = state.swingLimits.hitSide === 'right' ? 3.5 : 2;
-            ctx.strokeStyle = state.swingLimits.hitSide === 'right' ? '#fb923c' : 'rgba(249, 115, 22, 0.75)';
-            ctx.stroke();
-        }
     }
-    ctx.restore();
-
-    // 3. Camera Stitch Wedge Overlays
-    const wedges = [
-        { key: 'front', start: -Math.PI * 0.75, end: -Math.PI * 0.25, labelPos: [0, -135] },
-        { key: 'right', start: -Math.PI * 0.25, end: Math.PI * 0.25,  labelPos: [155, 0] },
-        { key: 'rear',  start: Math.PI * 0.25,  end: Math.PI * 0.75,  labelPos: [0, 138] },
-        { key: 'left',  start: Math.PI * 0.75,  end: Math.PI * 1.25,  labelPos: [-155, 0] }
-    ];
-
-    const maxRadius = Math.hypot(canvasW, canvasH);
-
-    wedges.forEach(w => {
-        const cam = state.cameras[w.key];
-        const a1 = w.start + ex.heading;
-        const a2 = w.end + ex.heading;
-
-        ctx.save();
+    for (let y = offsetY; y < viewH; y += gridSize) {
         ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(a1) * maxRadius, cy + Math.sin(a1) * maxRadius);
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
-        ctx.lineWidth = 1;
+        ctx.moveTo(0, y);
+        ctx.lineTo(viewW, y);
         ctx.stroke();
-        ctx.restore();
+    }
 
-        if (cam.dirt > 5) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.arc(cx, cy, maxRadius, a1, a2);
-            ctx.closePath();
-            ctx.clip();
-
-            const alpha = Math.min(0.84, (cam.dirt / 100) * 0.84);
-            ctx.fillStyle = `rgba(74, 53, 35, ${alpha})`;
-            ctx.fillRect(0, 0, canvasW, canvasH);
-
-            const midAngle = (a1 + a2) / 2;
-            const perpAngle = midAngle + Math.PI / 2;
-            cam.blobs.forEach(b => {
-                const dist = b.v * 230;
-                const spread = b.u * dist * 0.85;
-                const bx = cx + Math.cos(midAngle) * dist + Math.cos(perpAngle) * spread;
-                const by = cy + Math.sin(midAngle) * dist + Math.sin(perpAngle) * spread;
-                ctx.beginPath();
-                ctx.arc(bx, by, b.r, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(54, 37, 22, ${b.opacity})`;
-                ctx.fill();
-            });
-
-            if (cam.dirt >= state.dirtThresholdFail) {
-                const lx = cx + Math.cos(midAngle) * 135;
-                const ly = cy + Math.sin(midAngle) * 135;
-                ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
-                ctx.beginPath();
-                ctx.roundRect(lx - 58, ly - 15, 116, 30, 8);
-                ctx.fill();
-                ctx.strokeStyle = '#ef4444';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                ctx.fillStyle = '#fecaca';
-                ctx.font = 'bold 10px "JetBrains Mono", monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${w.key.toUpperCase()} DIRT`, lx, ly - 2);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 9px "Inter", sans-serif';
-                ctx.fillText('NO AUTO STOP', lx, ly + 10);
-            }
-            ctx.restore();
-        }
-    });
-
-    // 4. Render Workers
-    for (const w of state.workers) {
-        const sx = cx + (w.x - ex.x);
-        const sy = cy + (w.y - ex.y);
-        if (sx < -40 || sx > canvasW + 40 || sy < -40 || sy > canvasH + 40) continue;
-
-        const dist = Math.hypot(w.x - ex.x, w.y - ex.y);
-        const inStopZone = dist < stopRadius;
-
+    // 2. Muddy Crawler Track Marks in Ground
+    for (const tr of state.tracks) {
+        const sx = cx + (tr.x - ex.x);
+        const sy = cy + (tr.y - ex.y);
         ctx.save();
         ctx.translate(sx, sy);
+        ctx.rotate(tr.heading);
+        ctx.fillStyle = `rgba(10, 9, 8, ${tr.alpha})`;
+        ctx.fillRect(-6, -24, 12, 10);
+        ctx.fillRect(-6, 14, 12, 10);
+        ctx.restore();
+    }
 
-        const swing = Math.sin(w.walkPhase) * 3;
-        ctx.fillStyle = '#1e293b';
+    // 3. Safety Zone Rings (Red Auto Stop Zone & Amber Warning Zone)
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Warning Outer Dashed Ring
+    ctx.beginPath();
+    ctx.arc(0, 0, WARNING_RADIUS, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.28)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 6]);
+    ctx.stroke();
+
+    // Auto Stop Inner Red Zone
+    ctx.beginPath();
+    ctx.arc(0, 0, AUTO_STOP_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = state.emergencyBraking ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.07)';
+    ctx.fill();
+    ctx.strokeStyle = state.emergencyBraking ? 'rgba(248, 113, 113, 0.9)' : 'rgba(239, 68, 68, 0.45)';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 4. Swing Boundary Limit Sector Arc Visualization
+    if (state.swingLimit.leftDeg !== null || state.swingLimit.rightDeg !== null) {
+        const leftRad = state.swingLimit.leftDeg !== null ? -(state.swingLimit.leftDeg * Math.PI) / 180 : -Math.PI;
+        const rightRad = state.swingLimit.rightDeg !== null ? (state.swingLimit.rightDeg * Math.PI) / 180 : Math.PI;
+        const startA = ex.heading + leftRad;
+        const endA = ex.heading + rightRad;
+
         ctx.beginPath();
-        ctx.ellipse(0, 0, 9, 13 + Math.abs(swing) * 0.2, Math.atan2(w.vy, w.vx), 0, Math.PI * 2);
+        ctx.arc(0, 0, 126, startA, endA);
+        ctx.strokeStyle = 'rgba(249, 115, 22, 0.65)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        if (state.swingLimit.leftDeg !== null) {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(startA) * 134, Math.sin(startA) * 134);
+            ctx.strokeStyle = state.swingLimit.hitLeft ? '#fb923c' : 'rgba(249, 115, 22, 0.55)';
+            ctx.lineWidth = state.swingLimit.hitLeft ? 3 : 1.5;
+            ctx.stroke();
+        }
+        if (state.swingLimit.rightDeg !== null) {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(endA) * 134, Math.sin(endA) * 134);
+            ctx.strokeStyle = state.swingLimit.hitRight ? '#fb923c' : 'rgba(249, 115, 22, 0.55)';
+            ctx.lineWidth = state.swingLimit.hitRight ? 3 : 1.5;
+            ctx.stroke();
+        }
+    }
+
+    // 5. Stitched 360° Camera Seam Lines (Aligned with Cab)
+    for (let i = 0; i < 4; i++) {
+        const seamAngle = cabAngle + Math.PI * 0.25 + i * (Math.PI * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(seamAngle) * 600, Math.sin(seamAngle) * 600);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // 6. Site Workers & AI Bounding Boxes
+    for (const w of state.workers) {
+        const wx = cx + (w.x - ex.x);
+        const wy = cy + (w.y - ex.y);
+
+        if (w.struck) {
+            // Struck worker indicator
+            ctx.save();
+            ctx.translate(wx, wy);
+            ctx.fillStyle = 'rgba(220, 38, 38, 0.85)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fecaca';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('DOWN', 0, -16);
+            ctx.restore();
+            continue;
+        }
+
+        // High-visibility vest & hard hat
+        ctx.save();
+        ctx.translate(wx, wy);
+        ctx.fillStyle = '#84cc16'; // Hi-vis lime shoulders
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 10, 7, w.walkPhase * 0.2, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#facc15';
+        ctx.fillStyle = '#facc15'; // Yellow safety helmet
         ctx.beginPath();
-        ctx.arc(0, 0, 7, 0, Math.PI * 2);
+        ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
-        ctx.fill();
-
+        // AI Person Detection Bounding Box (Only shown when camera lens is clean!)
         if (w.detected) {
-            const boxColor = inStopZone ? '#ef4444' : '#22c55e';
+            const dist = Math.hypot(w.x - ex.x, w.y - ex.y);
+            const inDanger = dist <= AUTO_STOP_RADIUS;
+            const boxColor = inDanger ? '#ef4444' : '#22c55e';
+
             ctx.strokeStyle = boxColor;
-            ctx.lineWidth = 2.2;
-            ctx.strokeRect(-16, -16, 32, 32);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-15, -15, 30, 30);
 
             ctx.fillStyle = boxColor;
-            ctx.beginPath();
-            ctx.roundRect(-22, -31, 44, 13, 3);
-            ctx.fill();
-
+            ctx.fillRect(-19, -27, 38, 11);
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 8px "JetBrains Mono", monospace';
+            ctx.font = 'bold 7.5px JetBrains Mono, monospace';
             ctx.textAlign = 'center';
-            ctx.fillText('PERSON', 0, -22);
+            ctx.fillText('PERSON', 0, -19);
         }
         ctx.restore();
     }
 
-    // 5. Top-Down Excavator with Animated Treads & Forward Arrow
+    // 7. Excavator Undercarriage (Tracks) & Rotating Upper House
     ctx.save();
     ctx.translate(cx, cy);
+
+    // Undercarriage / Crawler Tracks
+    ctx.save();
     ctx.rotate(ex.heading);
 
-    if (Math.abs(ex.speed) > 0.1 || state.keys.left || state.keys.right) {
-        const dir = ex.speed >= 0 ? -1 : 1;
-        ctx.fillStyle = 'rgba(250, 204, 21, 0.85)';
-        ctx.beginPath();
-        ctx.moveTo(0, dir * 56);
-        ctx.lineTo(-7, dir * 46);
-        ctx.lineTo(7, dir * 46);
-        ctx.closePath();
-        ctx.fill();
-    }
-
-    ctx.fillStyle = '#1e293b';
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 1.5;
+    // Forward direction chevron on ground ahead of tracks
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(-26, -34, 12, 68, 3);
-    ctx.roundRect(14, -34, 12, 68, 3);
-    ctx.fill();
+    ctx.moveTo(42, -8);
+    ctx.lineTo(50, 0);
+    ctx.lineTo(42, 8);
     ctx.stroke();
 
-    ctx.fillStyle = '#94a3b8';
-    const step = 11;
-    const lShift = ((ex.leftTrackOffset % step) + step) % step;
-    const rShift = ((ex.rightTrackOffset % step) + step) % step;
-    for (let ty = -30 + lShift; ty < 32; ty += step) {
-        ctx.fillRect(-25, -ty, 10, 2.5);
-    }
-    for (let ty = -30 + rShift; ty < 32; ty += step) {
-        ctx.fillRect(15, -ty, 10, 2.5);
-    }
+    // Left & Right Track Frames
+    [-22, 12].forEach(ty => {
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-30, ty, 60, 10, 3);
+        ctx.fill();
+        ctx.stroke();
 
-    ctx.rotate(ex.cabAngle);
+        // Animated Track Grouser Treads
+        ctx.fillStyle = '#64748b';
+        const step = 8;
+        const shift = ((ex.trackPhase % step) + step) % step;
+        for (let tx = -28 + shift; tx < 28; tx += step) {
+            ctx.fillRect(tx, ty + 1, 3, 8);
+        }
+    });
+    ctx.restore();
 
+    // Rotating Upper Cab & Boom
+    ctx.save();
+    ctx.rotate(cabAngle);
+
+    // Counterweight & Main Body
     ctx.fillStyle = '#f59e0b';
     ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(-24, -17, 44, 34, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Dark Rear Counterweight Stripe
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-24, -15, 7, 30);
+
+    // Operator Cabin (Left Side)
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(-17, -22, 34, 46, 6);
+    ctx.roundRect(-4, -14, 20, 12, 3);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#334155';
-    ctx.fillRect(-15, 16, 30, 7);
-
-    ctx.fillStyle = '#0ea5e9';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.roundRect(-13, -15, 12, 20, 3);
-    ctx.fill();
-    ctx.stroke();
-
+    // Excavator Boom & Bucket Arm (Right/Center)
     ctx.fillStyle = '#d97706';
     ctx.strokeStyle = '#451a03';
-    ctx.beginPath();
-    ctx.roundRect(2, -52, 7, 44, 3);
-    ctx.fill();
-    ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(6, 2, 42, 7);
+    ctx.strokeRect(6, 2, 42, 7);
 
+    // Bucket
     ctx.fillStyle = '#334155';
-    ctx.beginPath();
-    ctx.roundRect(0, -62, 11, 12, 2);
-    ctx.fill();
+    ctx.fillRect(46, 0, 10, 11);
 
-    const dotPositions = [
-        { x: 0, y: -23, cam: 'front' },
-        { x: 0, y: 24,  cam: 'rear' },
-        { x: -18, y: 0, cam: 'left' },
-        { x: 18, y: 0,  cam: 'right' }
+    // 4 Camera Lens Dots on Upper Structure
+    const lensDots = [
+        { x: 20, y: 0, key: 'front' },
+        { x: -24, y: 0, key: 'rear' },
+        { x: 0, y: -17, key: 'left' },
+        { x: 0, y: 17, key: 'right' }
     ];
-    dotPositions.forEach(d => {
-        const dirt = state.cameras[d.cam].dirt;
-        ctx.fillStyle = dirt >= state.dirtThresholdFail ? '#ef4444' : (dirt >= state.dirtThresholdWarn ? '#f59e0b' : '#10b981');
+    lensDots.forEach(ld => {
+        const dirty = state.cameras[ld.key].dirt >= DIRT_THRESHOLD;
+        ctx.fillStyle = dirty ? '#ef4444' : '#10b981';
         ctx.beginPath();
-        ctx.arc(d.x, d.y, 3.2, 0, Math.PI * 2);
+        ctx.arc(ld.x, ld.y, 3, 0, Math.PI * 2);
         ctx.fill();
     });
 
     ctx.restore();
+    ctx.restore();
 
-    // 6. Washer Spray Wave Effect
-    if (state.washerWave > 0) {
+    // 8. Mud/Dirt Lens Occlusion Overlays per Stitched Sector
+    const sectorAngles = [
+        { key: 'front', center: cabAngle, label: 'FRONT DIRT' },
+        { key: 'right', center: cabAngle + Math.PI * 0.5, label: 'RIGHT DIRT' },
+        { key: 'rear',  center: cabAngle + Math.PI, label: 'REAR DIRT' },
+        { key: 'left',  center: cabAngle - Math.PI * 0.5, label: 'LEFT DIRT' }
+    ];
+
+    sectorAngles.forEach(sec => {
+        const cam = state.cameras[sec.key];
+        if (cam.dirt <= 0.01) return;
+
         ctx.save();
-        const radius = (1 - state.washerWave) * 260;
+        ctx.translate(cx, cy);
+
+        // Clip to the 90-degree camera sector
         ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(56, 189, 248, ${state.washerWave * 0.7})`;
-        ctx.lineWidth = 6;
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, 650, sec.center - Math.PI * 0.25, sec.center + Math.PI * 0.25);
+        ctx.closePath();
+        ctx.clip();
+
+        // Muddy Haze Tint
+        ctx.fillStyle = `rgba(92, 62, 34, ${cam.dirt * 0.62})`;
+        ctx.fillRect(-650, -650, 1300, 1300);
+
+        // Mud Splatters on Lens
+        cam.splatters.forEach(sp => {
+            const dist = sp.rFrac * 260;
+            const ang = sec.center + sp.aOffset;
+            const sx = Math.cos(ang) * dist;
+            const sy = Math.sin(ang) * dist;
+            ctx.fillStyle = `rgba(68, 44, 22, ${sp.alpha * cam.dirt})`;
+            ctx.beginPath();
+            ctx.arc(sx, sy, sp.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // In-Sector Warning Badge when Dirt Disables Auto Stop
+        if (cam.dirt >= DIRT_THRESHOLD) {
+            const badgeDist = 148;
+            const bx = Math.cos(sec.center) * badgeDist;
+            const by = Math.sin(sec.center) * badgeDist;
+
+            ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
+            ctx.strokeStyle = '#f87171';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(bx - 52, by - 16, 104, 32, 7);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fecaca';
+            ctx.font = 'bold 9px JetBrains Mono, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(sec.label, bx, by - 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 8px Inter, sans-serif';
+            ctx.fillText('NO AUTO STOP', bx, by + 10);
+        }
+
+        ctx.restore();
+    });
+
+    // 9. Washer Spray Effect
+    if (state.washerActive) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        const radius = state.washerProgress * 280;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${1 - state.washerProgress})`;
+        ctx.lineWidth = 10;
         ctx.stroke();
         ctx.restore();
     }
 
-    // 7. Rain Effect
-    ctx.save();
-    ctx.strokeStyle = 'rgba(186, 230, 253, 0.25)';
-    ctx.lineWidth = 1.1;
+    // 10. Simulated Rain Streaks
+    ctx.strokeStyle = 'rgba(186, 230, 253, 0.24)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
     for (const r of state.raindrops) {
         ctx.moveTo(r.x, r.y);
-        ctx.lineTo(r.x - 3, r.y + r.len);
+        ctx.lineTo(r.x - r.len * 0.18, r.y + r.len);
     }
     ctx.stroke();
-    ctx.restore();
 }
 
-// --- MAIN LOOP ---
-function loop() {
-    updateSimulation();
-    renderCameraView();
-    requestAnimationFrame(loop);
+// --- Bind Touch & Mouse Hold Buttons ---
+function bindHoldButton(btnId, controlKey) {
+    const el = document.getElementById(btnId);
+    if (!el) return;
+
+    const start = (e) => {
+        e.preventDefault();
+        audio.init();
+        state.controls[controlKey] = true;
+        el.classList.add('is-active');
+    };
+
+    const end = (e) => {
+        if (e) e.preventDefault();
+        state.controls[controlKey] = false;
+        el.classList.remove('is-active');
+    };
+
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('mouseleave', end);
+    el.addEventListener('touchstart', start, { passive: false });
+    el.addEventListener('touchend', end, { passive: false });
+    el.addEventListener('touchcancel', end, { passive: false });
 }
 
-window.onload = () => {
-    initEnvironment();
-    loop();
+bindHoldButton('btnFwd', 'fwd');
+bindHoldButton('btnRev', 'rev');
+bindHoldButton('btnLeft', 'left');
+bindHoldButton('btnRight', 'right');
+bindHoldButton('btnSwingLeft', 'swingLeft');
+bindHoldButton('btnSwingRight', 'swingRight');
+
+// --- Keyboard Controls (WASD / Arrow Keys / Q, C, E / Space) ---
+window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) {
+        e.preventDefault();
+    }
+    audio.init();
+
+    if (key === 'w' || key === 'arrowup') {
+        state.controls.fwd = true;
+        document.getElementById('btnFwd')?.classList.add('is-active');
+    } else if (key === 's' || key === 'arrowdown') {
+        state.controls.rev = true;
+        document.getElementById('btnRev')?.classList.add('is-active');
+    } else if (key === 'a' || key === 'arrowleft') {
+        state.controls.left = true;
+        document.getElementById('btnLeft')?.classList.add('is-active');
+    } else if (key === 'd' || key === 'arrowright') {
+        state.controls.right = true;
+        document.getElementById('btnRight')?.classList.add('is-active');
+    } else if (key === 'q') {
+        state.controls.swingLeft = true;
+        document.getElementById('btnSwingLeft')?.classList.add('is-active');
+    } else if (key === 'e') {
+        state.controls.swingRight = true;
+        document.getElementById('btnSwingRight')?.classList.add('is-active');
+    } else if (key === 'c') {
+        resetSwingToCenter();
+    } else if (key === ' ') {
+        triggerCameraWash();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'w' || key === 'arrowup') {
+        state.controls.fwd = false;
+        document.getElementById('btnFwd')?.classList.remove('is-active');
+    } else if (key === 's' || key === 'arrowdown') {
+        state.controls.rev = false;
+        document.getElementById('btnRev')?.classList.remove('is-active');
+    } else if (key === 'a' || key === 'arrowleft') {
+        state.controls.left = false;
+        document.getElementById('btnLeft')?.classList.remove('is-active');
+    } else if (key === 'd' || key === 'arrowright') {
+        state.controls.right = false;
+        document.getElementById('btnRight')?.classList.remove('is-active');
+    } else if (key === 'q') {
+        state.controls.swingLeft = false;
+        document.getElementById('btnSwingLeft')?.classList.remove('is-active');
+    } else if (key === 'e') {
+        state.controls.swingRight = false;
+        document.getElementById('btnSwingRight')?.classList.remove('is-active');
+    }
+});
+
+// --- Main Animation Loop ---
+let lastTime = 0;
+function gameLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+    lastTime = timestamp;
+
+    updateSimulation(dt);
+    renderSimulation();
+    requestAnimationFrame(gameLoop);
+}
+
+window.onload = function () {
+    document.getElementById('appVersionBadge').textContent = APP_VERSION;
+    resizeCanvas();
+    initRain();
+    syncWorkerCount(1);
+    updateSwingLimitUI();
+    requestAnimationFrame(gameLoop);
 };
 </script>
 </body>
