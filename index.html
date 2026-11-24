@@ -19,7 +19,12 @@
             color: #f3f4f6;
             margin: 0;
             padding: 0;
-            overflow-x: hidden;
+            width: 100vw;
+            height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
             touch-action: manipulation;
             user-select: none;
             -webkit-user-select: none;
@@ -29,25 +34,25 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* 12-inch Portrait HMI Display Container */
+        /* 12-inch Portrait HMI Display Container (Strict 1080x1920 / 9:16 Aspect Ratio) */
         .hmi-chassis {
-            width: 100%;
-            max-width: 540px;
-            min-height: 100dvh;
-            margin: 0 auto;
+            aspect-ratio: 1080 / 1920;
+            height: min(100dvh, calc(100vw * 1920 / 1080));
+            width: min(100vw, calc(100dvh * 1080 / 1920));
             background-color: var(--hmi-bg);
-            border-left: 1px solid #1e2532;
-            border-right: 1px solid #1e2532;
+            border: 1px solid #1e2532;
+            border-radius: 14px;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.85);
+            container-type: size;
         }
 
-        /* Top Half: Stitched 360 Camera Viewport */
+        /* Top Half: Stitched 360 Camera Viewport (Exact 50% of 1080x1920 HMI) */
         .camera-viewport-wrapper {
-            height: 50dvh;
-            min-height: 360px;
-            max-height: 540px;
+            flex: 0 0 50%;
+            height: 50%;
             position: relative;
             background: #12161f;
             border-bottom: 2px solid var(--hmi-border);
@@ -193,7 +198,7 @@
     </section>
 
     <!-- LOWER HALF: CLEAN OPERATOR CONTROLS & SIMULATION SETTINGS -->
-    <main class="flex-1 bg-[#11151d] p-3 flex flex-col justify-between gap-2.5 overflow-y-auto">
+    <main class="flex-1 min-h-0 bg-[#11151d] p-2.5 sm:p-3 flex flex-col justify-between gap-2 overflow-y-auto">
         
         <!-- 1. DRIVE & SWING PAD -->
         <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-3">
