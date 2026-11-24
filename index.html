@@ -298,12 +298,20 @@
 
                     <!-- Wash & Stepless Left / Center / Right Swing -->
                     <div class="flex flex-col gap-1.5 h-full">
-                        <button id="btnWash" class="touch-btn flex-1 rounded-xl bg-sky-950/90 border border-sky-700/80 hover:bg-sky-900 flex items-center justify-center gap-1.5 text-sky-200 font-bold text-xs shadow-sm">
-                            <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
-                            </svg>
-                            <span id="btnWashText">WASH</span>
-                        </button>
+                        <div class="grid grid-cols-2 gap-1 flex-1">
+                            <button id="btnWash" class="touch-btn h-full rounded-xl bg-sky-950/90 border border-sky-700/80 hover:bg-sky-900 flex items-center justify-center gap-1 text-sky-200 font-bold text-[11px] shadow-sm" title="Wash Camera Lenses (Space)">
+                                <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+                                </svg>
+                                <span id="btnWashText">WASH</span>
+                            </button>
+                            <button id="btnExternalWarn" class="touch-btn h-full rounded-xl bg-amber-950/90 border border-amber-600/80 hover:bg-amber-900 flex items-center justify-center gap-1 text-amber-200 font-bold text-[11px] shadow-sm" title="External PA Warning to Person in Red Zone (V)">
+                                <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"/>
+                                </svg>
+                                <span>WARN</span>
+                            </button>
+                        </div>
                         <div class="grid grid-cols-3 gap-1 flex-1">
                             <button id="btnSwingLeft" class="touch-btn h-full rounded-xl bg-slate-800/95 border border-slate-700 flex items-center justify-center text-slate-100 font-bold text-xs shadow-sm" title="Hold Swing Left (Q)">
                                 ↺L
@@ -396,7 +404,7 @@
             <!-- 4. VERSION & GITHUB UPDATE BAR -->
             <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800/90 rounded-xl px-3 py-1.5">
                 <div class="flex items-center gap-2">
-                    <span id="appVersionBadge" class="font-mono-tech text-[11px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">v1.7.0</span>
+                    <span id="appVersionBadge" class="font-mono-tech text-[11px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">v1.8.0</span>
                     <span id="updateStatusText" class="text-[11px] text-slate-400 truncate">Ready</span>
                 </div>
                 <button id="btnGithubUpdate" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-sky-300 text-[11px] font-bold transition-all">
@@ -411,7 +419,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v1.7.0';
+        const APP_VERSION = 'v1.8.0';
+        const WORKER_NAMES = ['Tajmul', 'Henrik', 'Josefin', 'Anwar', 'Long', 'Iheb'];
 
         // ==========================================
         // 1. SYNTHETIC AUDIO FEEDBACK (WEB AUDIO)
@@ -462,6 +471,11 @@
             }
             playLimitBump() {
                 this.playTone(290, 'square', 0.07, 0.05);
+            }
+            playExternalWarning() {
+                this.playTone(660, 'sine', 0.12, 0.14);
+                setTimeout(() => this.playTone(880, 'sine', 0.18, 0.14), 120);
+                setTimeout(() => this.playTone(660, 'sine', 0.22, 0.14), 290);
             }
         }
         const audio = new HmiAudio();
@@ -521,7 +535,13 @@
             lastTime: performance.now(),
             dirtTimer: 0,
             lastAlertSignature: '',
-            lastLimitBumpTime: 0
+            lastLimitBumpTime: 0,
+            externalBubble: {
+                active: false,
+                text: '',
+                targetWorker: null,
+                until: 0
+            }
         };
 
         // ==========================================
@@ -566,12 +586,19 @@
                 state.mudPatches.push({
                     x: Math.cos(angle) * dist,
                     y: Math.sin(angle) * dist,
-                    r: 14 + Math.random() * 26,
-                    alpha: 0.14 + Math.random() * 0.18
+                    r: 18 + Math.random() * 38,
+                    alpha: 0.25 + Math.random() * 0.35
                 });
             }
 
             syncWorkerCount(true);
+        }
+
+        function pickRandomWorkerName() {
+            const usedNames = new Set(state.workers.map(w => w.name));
+            const available = WORKER_NAMES.filter(n => !usedNames.has(n));
+            const pool = available.length > 0 ? available : WORKER_NAMES;
+            return pool[Math.floor(Math.random() * pool.length)];
         }
 
         function createFarWorker(index) {
@@ -579,13 +606,15 @@
             const angle = baseAngles[index % baseAngles.length] + (Math.random() - 0.5) * 0.4;
             const dist = 285 + (index % 3) * 35;
             return {
+                name: pickRandomWorkerName(),
                 x: state.excavator.x + Math.cos(angle) * dist,
                 y: state.excavator.y + Math.sin(angle) * dist,
                 vx: Math.cos(angle + Math.PI * 0.72) * 16,
                 vy: Math.sin(angle + Math.PI * 0.72) * 16,
                 walkPhase: Math.random() * Math.PI * 2,
                 struck: false,
-                struckTimer: 0
+                struckTimer: 0,
+                retreatingUntil: 0
             };
         }
 
@@ -642,7 +671,55 @@
             const btnWash = document.getElementById('btnWash');
             const btnWashText = document.getElementById('btnWashText');
             if (btnWash) btnWash.classList.add('border-sky-400', 'bg-sky-900');
-            if (btnWashText) btnWashText.textContent = 'WASHING...';
+            if (btnWashText) btnWashText.textContent = 'WASHING';
+        }
+
+        function triggerExternalWarning() {
+            audio.init();
+            const ex = state.excavator;
+            const now = Date.now();
+
+            // Find closest active worker inside the red danger zone
+            let target = null;
+            let bestDist = Infinity;
+
+            for (const w of state.workers) {
+                if (w.struck) continue;
+                const d = Math.hypot(w.x - ex.x, w.y - ex.y);
+                if (d < DANGER_RADIUS && d < bestDist) {
+                    bestDist = d;
+                    target = w;
+                }
+            }
+
+            audio.playExternalWarning();
+
+            if (target) {
+                const sector = getSectorForWorldPoint(target.x, target.y);
+                const isIdentified = state.cameras[sector].dirt < BLIND_THRESHOLD;
+                const label = isIdentified ? target.name : 'Person';
+
+                // Prompt the worker to step back outside the red zone
+                const awayAngle = Math.atan2(target.y - ex.y, target.x - ex.x);
+                target.vx = Math.cos(awayAngle) * 34;
+                target.vy = Math.sin(awayAngle) * 34;
+                target.retreatingUntil = now + 4500;
+
+                state.externalBubble = {
+                    active: true,
+                    text: `⚠ ${label}, leave the red zone!`,
+                    targetWorker: target,
+                    until: now + 4500
+                };
+            } else {
+                // Broadcast general PA message if no one is currently inside the red zone
+                state.externalBubble = {
+                    active: true,
+                    text: '⚠ Keep clear of machine work zone!',
+                    targetWorker: null,
+                    until: now + 3000
+                };
+            }
         }
 
         // ==========================================
@@ -722,6 +799,9 @@
             } else if (k === 'c') {
                 e.preventDefault();
                 state.excavator.swingCentering = true;
+            } else if (k === 'v') {
+                e.preventDefault();
+                triggerExternalWarning();
             } else if (k === ' ') {
                 e.preventDefault();
                 triggerCameraWash();
@@ -796,6 +876,10 @@
         document.getElementById('btnWash')?.addEventListener('click', () => {
             audio.init();
             triggerCameraWash();
+        });
+
+        document.getElementById('btnExternalWarn')?.addEventListener('click', () => {
+            triggerExternalWarning();
         });
 
         document.getElementById('dismissCollisionBtn')?.addEventListener('click', () => {
@@ -995,14 +1079,27 @@
 
             // 1. Check if any DETECTED worker is inside the Auto Stop danger zone
             let personInDangerZone = false;
+            let anyWorkerInDangerZone = false;
             for (const w of state.workers) {
                 if (w.struck) continue;
                 const dist = Math.hypot(w.x - ex.x, w.y - ex.y);
-                const sector = getSectorForWorldPoint(w.x, w.y);
-                const isDetected = state.cameras[sector].dirt < BLIND_THRESHOLD;
-                if (isDetected && dist < DANGER_RADIUS) {
-                    personInDangerZone = true;
-                    break;
+                if (dist < DANGER_RADIUS) {
+                    anyWorkerInDangerZone = true;
+                    const sector = getSectorForWorldPoint(w.x, w.y);
+                    const isDetected = state.cameras[sector].dirt < BLIND_THRESHOLD;
+                    if (isDetected) {
+                        personInDangerZone = true;
+                    }
+                }
+            }
+
+            // Highlight External Warning button when a person is inside the red zone
+            const warnBtn = document.getElementById('btnExternalWarn');
+            if (warnBtn) {
+                if (anyWorkerInDangerZone) {
+                    warnBtn.className = 'touch-btn h-full rounded-xl bg-amber-600 border-2 border-amber-200 flex items-center justify-center gap-1 text-white font-black text-[11px] shadow-lg animate-pulse';
+                } else {
+                    warnBtn.className = 'touch-btn h-full rounded-xl bg-amber-950/90 border border-amber-600/80 hover:bg-amber-900 flex items-center justify-center gap-1 text-amber-200 font-bold text-[11px] shadow-sm';
                 }
             }
 
@@ -1202,7 +1299,19 @@
                 const dy = w.y - ex.y;
                 const dist = Math.hypot(dx, dy);
 
-                if (dist > 390) {
+                if (w.retreatingUntil && now < w.retreatingUntil) {
+                    // Keep walking directly away from the machine until well clear of the red zone
+                    if (dist < DANGER_RADIUS + 45) {
+                        const awayAngle = Math.atan2(dy, dx);
+                        w.vx = Math.cos(awayAngle) * 34;
+                        w.vy = Math.sin(awayAngle) * 34;
+                    } else {
+                        w.retreatingUntil = 0;
+                        const tangent = Math.atan2(dy, dx) + Math.PI * 0.5;
+                        w.vx = Math.cos(tangent) * 16;
+                        w.vy = Math.sin(tangent) * 16;
+                    }
+                } else if (dist > 390) {
                     const backAngle = Math.atan2(ex.y - w.y, ex.x - w.x) + (Math.random() - 0.5) * 0.8;
                     w.vx = Math.cos(backAngle) * 18;
                     w.vy = Math.sin(backAngle) * 18;
@@ -1391,10 +1500,10 @@
 
                 ctx.fillStyle = '#fef08a';
                 ctx.beginPath();
-                ctx.arc(0, bob, 5.5, 0, Math.PI * 2);
+                ctx.arc(0, bob - 1, 5, 0, Math.PI * 2);
                 ctx.fill();
 
-                // AI Person Bounding Box (ONLY drawn if camera sector is NOT blind)
+                // AI Person Bounding Box & Identified Name (ONLY drawn if camera sector is NOT blind)
                 if (isDetected) {
                     const inDanger = dist < DANGER_RADIUS;
                     const inCaution = dist < CAUTION_RADIUS;
@@ -1404,12 +1513,19 @@
                     ctx.lineWidth = 2;
                     ctx.strokeRect(-14, -14, 28, 28);
 
+                    const tagText = inDanger ? `${w.name.toUpperCase()} · STOP` : w.name.toUpperCase();
+                    ctx.font = 'bold 8px JetBrains Mono, monospace';
+                    const textW = ctx.measureText(tagText).width;
+                    const pillW = Math.max(42, textW + 10);
+
                     ctx.fillStyle = boxColor;
-                    ctx.fillRect(-18, -26, 36, 11);
+                    ctx.beginPath();
+                    ctx.roundRect(-pillW / 2, -28, pillW, 12, 3);
+                    ctx.fill();
+
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 7.5px JetBrains Mono, monospace';
                     ctx.textAlign = 'center';
-                    ctx.fillText(inDanger ? 'STOP!' : 'PERSON', 0, -18);
+                    ctx.fillText(tagText, 0, -19);
                 }
 
                 ctx.restore();
@@ -1579,6 +1695,66 @@
                 ctx.lineTo(drop.x - drop.len * 0.14, drop.y + drop.len);
             }
             ctx.stroke();
+
+            // 8. External PA Warning Speech Bubble Overlay
+            if (state.externalBubble.active) {
+                if (Date.now() > state.externalBubble.until) {
+                    state.externalBubble.active = false;
+                } else {
+                    const tw = state.externalBubble.targetWorker;
+                    let bx = cx;
+                    let by = cy - 68;
+
+                    if (tw && !tw.struck) {
+                        bx = cx + (tw.x - ex.x);
+                        by = cy + (tw.y - ex.y) - 44;
+                    }
+
+                    ctx.save();
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    const msg = state.externalBubble.text;
+                    const padX = 12;
+                    const boxW = Math.min(viewW - 24, ctx.measureText(msg).width + padX * 2);
+                    const boxH = 30;
+
+                    // Clamp bubble inside viewport edges so it never clips
+                    const clampedX = Math.max(boxW / 2 + 10, Math.min(viewW - boxW / 2 - 10, bx));
+                    const clampedY = Math.max(58, Math.min(viewH - 46, by));
+
+                    // Speech bubble shadow & body
+                    ctx.fillStyle = 'rgba(254, 243, 199, 0.98)';
+                    ctx.strokeStyle = '#d97706';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 10);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Speech bubble pointer tail
+                    const tailX = Math.max(clampedX - boxW / 2 + 14, Math.min(clampedX + boxW / 2 - 14, bx));
+                    ctx.fillStyle = 'rgba(254, 243, 199, 0.98)';
+                    ctx.beginPath();
+                    ctx.moveTo(tailX - 6, clampedY + boxH / 2 - 1);
+                    ctx.lineTo(tailX + 6, clampedY + boxH / 2 - 1);
+                    ctx.lineTo(tailX, clampedY + boxH / 2 + 7);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#d97706';
+                    ctx.beginPath();
+                    ctx.moveTo(tailX - 6, clampedY + boxH / 2);
+                    ctx.lineTo(tailX, clampedY + boxH / 2 + 7);
+                    ctx.lineTo(tailX + 6, clampedY + boxH / 2);
+                    ctx.stroke();
+
+                    // Speech bubble message text
+                    ctx.fillStyle = '#78350f';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(msg, clampedX, clampedY);
+                    ctx.restore();
+                }
+            }
         }
 
         // ==========================================
