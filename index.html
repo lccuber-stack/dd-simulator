@@ -49,7 +49,7 @@
 
         /* Top Half: 360 Stitched Camera Viewport (50% of 1080x1920) */
         .camera-viewport {
-            flex: 0 0 50%;
+            flex: 0 0 48%;
             position: relative;
             background: #141210;
             border-bottom: 2px solid #2a3242;
@@ -197,11 +197,11 @@
     </section>
 
     <!-- LOWER HALF: CLEAN OPERATOR CONTROLS & SIMULATION SETTINGS (Zero Scrollbar, Full Area Utilization) -->
-    <main class="flex-1 min-h-0 bg-[#11151d] p-2.5 flex flex-col justify-between gap-2 overflow-hidden">
+    <main class="flex-1 min-h-0 bg-[#11151d] p-2 flex flex-col justify-between gap-1.5 overflow-hidden">
         
         <!-- 1. DRIVE & SWING PAD -->
-        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2.5 flex-1 flex flex-col justify-between min-h-0">
-            <div class="flex items-center justify-between mb-1.5">
+        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2 flex-1 flex flex-col justify-between min-h-0">
+            <div class="flex items-center justify-between mb-1">
                 <div class="flex items-center gap-2">
                     <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Drive & Swing</span>
                     <span id="cabAngleReadout" class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">0°</span>
@@ -209,46 +209,46 @@
                 <span class="text-[10px] font-mono-tech text-slate-500">WASD / Q·C·E</span>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 items-stretch flex-1 min-h-0">
+            <div class="grid grid-cols-3 gap-1.5 items-stretch flex-1 min-h-0">
                 <!-- Left / Right Track Steer -->
-                <div class="grid grid-cols-2 gap-1.5">
-                    <button id="btn-left" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-2 flex flex-col items-center justify-center text-slate-200 font-bold text-xs">
+                <div class="grid grid-cols-2 gap-1 min-h-0">
+                    <button id="btn-left" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex flex-col items-center justify-center text-slate-200 font-bold text-xs min-h-0">
                         <span>◀</span>
-                        <span class="text-[10px] mt-0.5">LEFT</span>
+                        <span class="text-[9px] mt-0.5">LEFT</span>
                     </button>
-                    <button id="btn-right" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-2 flex flex-col items-center justify-center text-slate-200 font-bold text-xs">
+                    <button id="btn-right" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex flex-col items-center justify-center text-slate-200 font-bold text-xs min-h-0">
                         <span>▶</span>
-                        <span class="text-[10px] mt-0.5">RIGHT</span>
+                        <span class="text-[9px] mt-0.5">RIGHT</span>
                     </button>
                 </div>
 
                 <!-- Forward / Reverse -->
-                <div class="flex flex-col gap-1.5">
-                    <button id="btn-up" class="touch-btn flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-2 flex items-center justify-center text-slate-200 font-bold text-xs">
+                <div class="flex flex-col gap-1 min-h-0">
+                    <button id="btn-up" class="touch-btn flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-xs min-h-0">
                         ▲ FWD
                     </button>
-                    <button id="btn-down" class="touch-btn flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-2 flex items-center justify-center text-slate-200 font-bold text-xs">
+                    <button id="btn-down" class="touch-btn flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-xs min-h-0">
                         ▼ REV
                     </button>
                 </div>
 
                 <!-- Wash & Two-Way Cab Swing + Center Reset -->
-                <div class="flex flex-col gap-1.5">
-                    <button onclick="cleanCameras()" class="flex-1 bg-sky-950 hover:bg-sky-900 active:scale-95 border border-sky-500/60 rounded-xl py-2 px-2 text-sky-200 font-bold text-xs flex items-center justify-center gap-1.5 transition">
-                        <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="flex flex-col gap-1 min-h-0">
+                    <button onclick="cleanCameras()" class="flex-1 bg-sky-950 hover:bg-sky-900 active:scale-95 border border-sky-500/60 rounded-xl py-1 px-1.5 text-sky-200 font-bold text-xs flex items-center justify-center gap-1 transition min-h-0">
+                        <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
                         <span>WASH</span>
                     </button>
-                    <div class="grid grid-cols-3 gap-1 flex-1">
-                        <button id="btn-swing-left" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-2 flex items-center justify-center text-slate-200 font-bold text-xs" title="Swing Left (Q)">
-                            ↺ L
+                    <div class="grid grid-cols-3 gap-1 flex-1 min-h-0">
+                        <button id="btn-swing-left" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-[11px] min-h-0" title="Swing Left (Q)">
+                            ↺L
                         </button>
-                        <button id="btn-swing-reset" onclick="resetCabSwing()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-xl py-2 flex items-center justify-center text-amber-300 font-bold text-[10px]" title="Center Cab (C)">
+                        <button id="btn-swing-reset" onclick="resetCabSwing()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-amber-300 font-bold text-[10px] min-h-0" title="Center Cab (C)">
                             0°
                         </button>
-                        <button id="btn-swing-right" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-2 flex items-center justify-center text-slate-200 font-bold text-xs" title="Swing Right (E)">
-                            ↻ R
+                        <button id="btn-swing-right" class="touch-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl py-1 flex items-center justify-center text-slate-200 font-bold text-[11px] min-h-0" title="Swing Right (E)">
+                            ↻R
                         </button>
                     </div>
                 </div>
@@ -256,71 +256,71 @@
         </div>
 
         <!-- 2. SWING BOUNDARY LIMIT CONTROLS -->
-        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl px-2.5 py-2 shrink-0">
-            <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5">
+        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl px-2.5 py-1.5 shrink-0">
+            <div class="flex items-center justify-between gap-1.5">
+                <div class="flex items-center gap-1.5 shrink-0">
                     <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Swing Limit</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Swing Limit</span>
                 </div>
                 <div class="flex items-center gap-1">
-                    <button onclick="setSwingLimitPreset(null, null)" id="limit-off" class="px-2 py-1 rounded-md text-[10px] font-mono-tech font-bold bg-orange-600 text-white border border-orange-400">OFF</button>
-                    <button onclick="setSwingLimitPreset(45, 45)" id="limit-45" class="px-2 py-1 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±45°</button>
-                    <button onclick="setSwingLimitPreset(90, 90)" id="limit-90" class="px-2 py-1 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±90°</button>
-                    <button onclick="setSwingLimitPreset(135, 135)" id="limit-135" class="px-2 py-1 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±135°</button>
+                    <button onclick="setSwingLimitPreset(null, null)" id="limit-off" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-orange-600 text-white border border-orange-400">OFF</button>
+                    <button onclick="setSwingLimitPreset(45, 45)" id="limit-45" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±45°</button>
+                    <button onclick="setSwingLimitPreset(90, 90)" id="limit-90" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±90°</button>
+                    <button onclick="setSwingLimitPreset(135, 135)" id="limit-135" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600">±135°</button>
                 </div>
             </div>
 
             <!-- Individual Left / Right Boundary Fine-Tuning -->
-            <div class="grid grid-cols-2 gap-2 mt-1.5">
+            <div class="grid grid-cols-2 gap-1.5 mt-1.5">
                 <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-orange-300">Left Limit</span>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="adjustSideLimit('left', -15)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs">−</button>
-                        <span id="leftLimitLabel" class="font-mono-tech text-[11px] font-bold text-slate-200 w-9 text-center">OFF</span>
-                        <button onclick="adjustSideLimit('left', 15)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs">+</button>
+                    <span class="text-[10px] font-bold text-orange-300">Left</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="adjustSideLimit('left', -15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">−</button>
+                        <span id="leftLimitLabel" class="font-mono-tech text-[10px] font-bold text-slate-200 w-8 text-center">OFF</span>
+                        <button onclick="adjustSideLimit('left', 15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">+</button>
                     </div>
                 </div>
                 <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-orange-300">Right Limit</span>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="adjustSideLimit('right', -15)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs">−</button>
-                        <span id="rightLimitLabel" class="font-mono-tech text-[11px] font-bold text-slate-200 w-9 text-center">OFF</span>
-                        <button onclick="adjustSideLimit('right', 15)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs">+</button>
+                    <span class="text-[10px] font-bold text-orange-300">Right</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="adjustSideLimit('right', -15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">−</button>
+                        <span id="rightLimitLabel" class="font-mono-tech text-[10px] font-bold text-slate-200 w-8 text-center">OFF</span>
+                        <button onclick="adjustSideLimit('right', 15)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">+</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 3. SIMULATION CONTROLS (People Count + Dirt Triggers) -->
-        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2.5 space-y-2 shrink-0">
+        <div class="bg-[#161c26] border border-[#252e3d] rounded-xl p-2 space-y-1.5 shrink-0">
             <!-- Row 1: People Counter & Auto Rain Mud -->
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-2 gap-1.5">
                 <!-- People Count Control (Default: 1) -->
-                <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-300">People</span>
-                    <div class="flex items-center gap-2">
-                        <button onclick="changeWorkerCount(-1)" class="w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-sm flex items-center justify-center">−</button>
-                        <span id="workerCountDisplay" class="font-mono-tech text-sm font-bold text-white w-4 text-center">1</span>
-                        <button onclick="changeWorkerCount(1)" class="w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-sm flex items-center justify-center">+</button>
+                <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-slate-300">People</span>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="changeWorkerCount(-1)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">−</button>
+                        <span id="workerCountDisplay" class="font-mono-tech text-xs font-bold text-white w-4 text-center">1</span>
+                        <button onclick="changeWorkerCount(1)" class="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-bold text-xs flex items-center justify-center">+</button>
                     </div>
                 </div>
 
                 <!-- Auto Mud Build-up Toggle -->
-                <label class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 flex items-center justify-between cursor-pointer">
-                    <span class="text-xs font-bold text-slate-300">Auto Mud</span>
+                <label class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 flex items-center justify-between cursor-pointer">
+                    <span class="text-[11px] font-bold text-slate-300">Auto Mud</span>
                     <input type="checkbox" id="autoDirtToggle" checked class="w-4 h-4 accent-amber-500 rounded cursor-pointer">
                 </label>
             </div>
 
             <!-- Row 2: Instant Dirt Injection Buttons -->
             <div class="grid grid-cols-3 gap-1.5">
-                <button onclick="triggerDirtOnSector('front')" class="bg-amber-950/60 hover:bg-amber-900/70 active:scale-95 border border-amber-600/50 text-amber-200 text-xs font-bold py-1.5 rounded-lg transition">
+                <button onclick="triggerDirtOnSector('front')" class="bg-amber-950/60 hover:bg-amber-900/70 active:scale-95 border border-amber-600/50 text-amber-200 text-[11px] font-bold py-1.5 rounded-lg transition">
                     + Mud Front
                 </button>
-                <button onclick="triggerDirtOnSector('rear')" class="bg-amber-950/60 hover:bg-amber-900/70 active:scale-95 border border-amber-600/50 text-amber-200 text-xs font-bold py-1.5 rounded-lg transition">
+                <button onclick="triggerDirtOnSector('rear')" class="bg-amber-950/60 hover:bg-amber-900/70 active:scale-95 border border-amber-600/50 text-amber-200 text-[11px] font-bold py-1.5 rounded-lg transition">
                     + Mud Rear
                 </button>
-                <button onclick="triggerDirtOnSector('all')" class="bg-red-950/60 hover:bg-red-900/70 active:scale-95 border border-red-600/50 text-red-200 text-xs font-bold py-1.5 rounded-lg transition">
+                <button onclick="triggerDirtOnSector('all')" class="bg-red-950/60 hover:bg-red-900/70 active:scale-95 border border-red-600/50 text-red-200 text-[11px] font-bold py-1.5 rounded-lg transition">
                     + Mud All
                 </button>
             </div>
@@ -329,11 +329,11 @@
         <!-- 4. APP VERSION & GITHUB UPDATE BAR -->
         <div class="bg-[#161c26] border border-[#252e3d] rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shrink-0">
             <div class="flex items-center gap-2 min-w-0">
-                <span id="appVersionBadge" class="text-[11px] font-mono-tech font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">v1.5.1</span>
-                <span id="updateStatusText" class="text-[11px] text-slate-400 truncate">Ready</span>
+                <span id="appVersionBadge" class="text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">v1.5.2</span>
+                <span id="updateStatusText" class="text-[10px] text-slate-400 truncate">Ready</span>
             </div>
-            <button id="btnCheckUpdate" onclick="fetchLatestUpdate()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-lg px-2.5 py-1 text-sky-300 font-bold text-[11px] flex items-center gap-1.5 transition shrink-0">
-                <svg id="updateIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button id="btnCheckUpdate" onclick="fetchLatestUpdate()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 rounded-lg px-2.5 py-1 text-sky-300 font-bold text-[10px] flex items-center gap-1 transition shrink-0">
+                <svg id="updateIcon" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
                 <span>Update</span>
@@ -347,7 +347,7 @@
  * EXCAVATOR 360° HMI & DIRT DETECTION SIMULATOR
  * Complete Verified Build: 1080x1920 Ratio, Swing Reset & Left/Right Boundary Limits
  */
-const APP_VERSION = 'v1.5.1';
+const APP_VERSION = 'v1.5.2';
 
 async function fetchLatestUpdate() {
     const btn = document.getElementById('btnCheckUpdate');
@@ -649,8 +649,8 @@ function updateSwingLimitUI() {
         const el = document.getElementById(p.id);
         if (!el) return;
         el.className = p.active
-            ? 'px-2 py-1 rounded-md text-[10px] font-mono-tech font-bold bg-orange-600 text-white border border-orange-400'
-            : 'px-2 py-1 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600';
+            ? 'px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-orange-600 text-white border border-orange-400'
+            : 'px-1.5 py-0.5 rounded-md text-[10px] font-mono-tech font-bold bg-slate-800 text-slate-300 border border-slate-600';
     });
 }
 
