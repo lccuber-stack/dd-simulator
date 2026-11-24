@@ -229,8 +229,8 @@
                 </div>
             </div>
 
-            <!-- TOP CENTER ROUND STOP ICON -->
-            <div id="centerAutoStopIcon" style="transform: translateX(-50%);" class="absolute top-2.5 left-1/2 z-25 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.75)]" title="Auto Stop Status">
+            <!-- TOP CENTER ROUND AUTO STOP ICON -->
+            <div id="centerAutoStopIcon" style="transform: translateX(-50%);" class="absolute top-2.5 left-1/2 z-30 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.85)]" title="Auto Stop Status">
                 <svg class="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="stopSignGrad" x1="0" y1="0" x2="0" y2="1">
@@ -239,18 +239,18 @@
                         </linearGradient>
                     </defs>
                     <!-- Outer Round Metallic Bezel -->
-                    <circle cx="32" cy="32" r="30" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+                    <circle cx="32" cy="32" r="30" fill="#0f172a" stroke="#475569" stroke-width="2"/>
                     <!-- Inner Round Colored Sign & Crisp Rim -->
-                    <circle id="stopSignRim" cx="32" cy="32" r="26.5" fill="url(#stopSignGrad)" stroke="#ecfdf5" stroke-width="2.5"/>
+                    <circle id="stopSignRim" cx="32" cy="32" r="26" fill="url(#stopSignGrad)" stroke="#ecfdf5" stroke-width="2.5"/>
                     <!-- STOP Typography -->
                     <text id="stopSignLabel" x="32" y="36.5" text-anchor="middle" fill="#ffffff" font-family="Inter, sans-serif" font-weight="900" font-size="13.5" letter-spacing="0.8">STOP</text>
                     <!-- Diagonal Slash (Visible when Auto Stop is degraded/disabled) -->
-                    <line id="stopSignSlash" x1="14" y1="50" x2="50" y2="14" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" class="hidden" opacity="0.92"/>
+                    <line id="stopSignSlash" x1="14" y1="50" x2="50" y2="14" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" class="hidden" opacity="0.95"/>
                 </svg>
             </div>
 
             <!-- Top-Left Weather Pill -->
-            <div class="absolute top-3 left-3 pointer-events-none">
+            <div class="absolute top-3 left-3 z-20 pointer-events-none">
                 <div class="flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-sm border border-slate-700/80 px-2.5 py-1 rounded-lg">
                     <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/>
@@ -260,7 +260,7 @@
             </div>
 
             <!-- Top-Right 4-Camera Health Chips -->
-            <div class="absolute top-3 right-3 flex items-center gap-1 bg-slate-950/85 backdrop-blur-sm p-1 rounded-lg border border-slate-800 pointer-events-none">
+            <div class="absolute top-3 right-3 z-20 flex items-center gap-1 bg-slate-950/85 backdrop-blur-sm p-1 rounded-lg border border-slate-800 pointer-events-none">
                 <span id="chip-front" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-700/60">F:OK</span>
                 <span id="chip-rear" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-700/60">R:OK</span>
                 <span id="chip-left" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-700/60">L:OK</span>
