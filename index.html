@@ -2476,50 +2476,59 @@
                     state.externalBubble.active = false;
                 } else {
                     const bx = cx;
-                    const by = cy - 62;
+                    const by = cy - 72;
 
                     ctx.save();
-                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.font = '900 14.5px Inter, sans-serif';
                     const msg = state.externalBubble.text;
-                    const padX = 12;
-                    const boxW = Math.min(viewW - 24, ctx.measureText(msg).width + padX * 2);
-                    const boxH = 30;
+                    const padX = 16;
+                    const boxW = Math.min(viewW - 20, ctx.measureText(msg).width + padX * 2);
+                    const boxH = 38;
 
                     // Clamp bubble inside viewport edges so it never clips
                     const clampedX = Math.max(boxW / 2 + 10, Math.min(viewW - boxW / 2 - 10, bx));
-                    const clampedY = Math.max(58, Math.min(viewH - 46, by));
+                    const clampedY = Math.max(66, Math.min(viewH - 46, by));
 
-                    // Speech bubble body
-                    ctx.fillStyle = 'rgba(254, 243, 199, 0.98)';
-                    ctx.strokeStyle = '#d97706';
-                    ctx.lineWidth = 2;
+                    // Speech bubble body with high-contrast shadow
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.78)';
+                    ctx.shadowBlur = 12;
+                    ctx.shadowOffsetY = 4;
+                    ctx.fillStyle = 'rgba(254, 243, 199, 0.99)';
                     ctx.beginPath();
-                    ctx.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 10);
+                    ctx.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 12);
                     ctx.fill();
+                    ctx.restore();
+
+                    ctx.strokeStyle = '#d97706';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 12);
                     ctx.stroke();
 
                     // Speech bubble pointer tail pointing directly at the excavator center
                     const tailX = cx;
-                    ctx.fillStyle = 'rgba(254, 243, 199, 0.98)';
+                    ctx.fillStyle = 'rgba(254, 243, 199, 0.99)';
                     ctx.beginPath();
-                    ctx.moveTo(tailX - 6, clampedY + boxH / 2 - 1);
-                    ctx.lineTo(tailX + 6, clampedY + boxH / 2 - 1);
-                    ctx.lineTo(tailX, clampedY + boxH / 2 + 9);
+                    ctx.moveTo(tailX - 8, clampedY + boxH / 2 - 1);
+                    ctx.lineTo(tailX + 8, clampedY + boxH / 2 - 1);
+                    ctx.lineTo(tailX, clampedY + boxH / 2 + 11);
                     ctx.closePath();
                     ctx.fill();
 
                     ctx.strokeStyle = '#d97706';
+                    ctx.lineWidth = 2.5;
                     ctx.beginPath();
-                    ctx.moveTo(tailX - 6, clampedY + boxH / 2);
-                    ctx.lineTo(tailX, clampedY + boxH / 2 + 9);
-                    ctx.lineTo(tailX + 6, clampedY + boxH / 2);
+                    ctx.moveTo(tailX - 8, clampedY + boxH / 2);
+                    ctx.lineTo(tailX, clampedY + boxH / 2 + 11);
+                    ctx.lineTo(tailX + 8, clampedY + boxH / 2);
                     ctx.stroke();
 
                     // Speech bubble message text
-                    ctx.fillStyle = '#78350f';
+                    ctx.fillStyle = '#451a03';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(msg, clampedX, clampedY);
+                    ctx.fillText(msg, clampedX, clampedY + 0.5);
                     ctx.restore();
                 }
             }
@@ -2918,41 +2927,50 @@
 
         function drawSpeechBubble3D(bx, by, msg, fromMachine = false) {
             hudCtx3d.save();
-            hudCtx3d.font = 'bold 11px Inter, sans-serif';
-            const boxW = Math.min(viewW - 24, hudCtx3d.measureText(msg).width + 24);
-            const boxH = 28;
+            hudCtx3d.font = '900 14.5px Inter, sans-serif';
+            const boxW = Math.min(viewW - 20, hudCtx3d.measureText(msg).width + 32);
+            const boxH = 38;
             const clampedX = Math.max(boxW / 2 + 10, Math.min(viewW - boxW / 2 - 10, bx));
-            const clampedY = Math.max(58, Math.min(viewH - 46, by));
+            const clampedY = Math.max(66, Math.min(viewH - 46, by));
 
-            hudCtx3d.fillStyle = 'rgba(254, 243, 199, 0.98)';
-            hudCtx3d.strokeStyle = '#d97706';
-            hudCtx3d.lineWidth = 2;
+            hudCtx3d.save();
+            hudCtx3d.shadowColor = 'rgba(0, 0, 0, 0.78)';
+            hudCtx3d.shadowBlur = 12;
+            hudCtx3d.shadowOffsetY = 4;
+            hudCtx3d.fillStyle = 'rgba(254, 243, 199, 0.99)';
             hudCtx3d.beginPath();
-            hudCtx3d.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 10);
+            hudCtx3d.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 12);
             hudCtx3d.fill();
+            hudCtx3d.restore();
+
+            hudCtx3d.strokeStyle = '#d97706';
+            hudCtx3d.lineWidth = 2.5;
+            hudCtx3d.beginPath();
+            hudCtx3d.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 12);
             hudCtx3d.stroke();
 
             if (fromMachine) {
-                hudCtx3d.fillStyle = 'rgba(254, 243, 199, 0.98)';
+                hudCtx3d.fillStyle = 'rgba(254, 243, 199, 0.99)';
                 hudCtx3d.beginPath();
-                hudCtx3d.moveTo(clampedX - 6, clampedY + boxH / 2 - 1);
-                hudCtx3d.lineTo(clampedX + 6, clampedY + boxH / 2 - 1);
-                hudCtx3d.lineTo(clampedX, clampedY + boxH / 2 + 9);
+                hudCtx3d.moveTo(clampedX - 8, clampedY + boxH / 2 - 1);
+                hudCtx3d.lineTo(clampedX + 8, clampedY + boxH / 2 - 1);
+                hudCtx3d.lineTo(clampedX, clampedY + boxH / 2 + 11);
                 hudCtx3d.closePath();
                 hudCtx3d.fill();
 
                 hudCtx3d.strokeStyle = '#d97706';
+                hudCtx3d.lineWidth = 2.5;
                 hudCtx3d.beginPath();
-                hudCtx3d.moveTo(clampedX - 6, clampedY + boxH / 2);
-                hudCtx3d.lineTo(clampedX, clampedY + boxH / 2 + 9);
-                hudCtx3d.lineTo(clampedX + 6, clampedY + boxH / 2);
+                hudCtx3d.moveTo(clampedX - 8, clampedY + boxH / 2);
+                hudCtx3d.lineTo(clampedX, clampedY + boxH / 2 + 11);
+                hudCtx3d.lineTo(clampedX + 8, clampedY + boxH / 2);
                 hudCtx3d.stroke();
             }
 
-            hudCtx3d.fillStyle = '#78350f';
+            hudCtx3d.fillStyle = '#451a03';
             hudCtx3d.textAlign = 'center';
             hudCtx3d.textBaseline = 'middle';
-            hudCtx3d.fillText(msg, clampedX, clampedY);
+            hudCtx3d.fillText(msg, clampedX, clampedY + 0.5);
             hudCtx3d.restore();
         }
 
