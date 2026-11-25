@@ -2416,25 +2416,35 @@
 
                     // In-view sector badge when blind
                     if (cam.dirt >= BLIND_THRESHOLD) {
-                        const badgeDist = 112;
+                        const badgeDist = 122;
                         const bx = cx + Math.cos(sec.centerAngle) * badgeDist;
                         const by = cy + Math.sin(sec.centerAngle) * badgeDist;
 
-                        ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
-                        ctx.strokeStyle = '#f87171';
-                        ctx.lineWidth = 1.5;
+                        ctx.save();
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                        ctx.shadowBlur = 10;
+                        ctx.shadowOffsetY = 3;
+                        ctx.fillStyle = 'rgba(127, 29, 29, 0.96)';
                         ctx.beginPath();
-                        ctx.roundRect(bx - 52, by - 16, 104, 32, 8);
+                        ctx.roundRect(bx - 76, by - 24, 152, 48, 10);
                         ctx.fill();
+                        ctx.restore();
+
+                        ctx.strokeStyle = '#fca5a5';
+                        ctx.lineWidth = 2.2;
+                        ctx.beginPath();
+                        ctx.roundRect(bx - 76, by - 24, 152, 48, 10);
                         ctx.stroke();
 
-                        ctx.fillStyle = '#fecaca';
-                        ctx.font = 'bold 9px JetBrains Mono, monospace';
+                        ctx.fillStyle = '#fef2f2';
+                        ctx.font = '800 13px JetBrains Mono, monospace';
                         ctx.textAlign = 'center';
-                        ctx.fillText(`${sec.label} DIRT`, bx, by - 3);
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = 'bold 8px Inter, sans-serif';
-                        ctx.fillText('NO AUTO STOP', bx, by + 9);
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`${sec.label} DIRT`, bx, by - 9);
+
+                        ctx.fillStyle = '#fde047';
+                        ctx.font = '900 11.5px Inter, sans-serif';
+                        ctx.fillText('NO AUTO STOP', bx, by + 10);
                     }
                     ctx.restore();
                 }
@@ -2836,16 +2846,25 @@
                     mCtx.fillRect(0, 0, mw, mh);
 
                     if (cam.dirt >= BLIND_THRESHOLD) {
-                        const bx = cx + Math.cos(sec.centerAngle) * 105;
-                        const by = cy + Math.sin(sec.centerAngle) * 105;
-                        mCtx.fillStyle = 'rgba(127, 29, 29, 0.94)';
+                        const bx = cx + Math.cos(sec.centerAngle) * 112;
+                        const by = cy + Math.sin(sec.centerAngle) * 112;
+                        mCtx.fillStyle = 'rgba(127, 29, 29, 0.96)';
+                        mCtx.strokeStyle = '#fca5a5';
+                        mCtx.lineWidth = 2;
                         mCtx.beginPath();
-                        mCtx.roundRect(bx - 48, by - 14, 96, 28, 6);
+                        mCtx.roundRect(bx - 68, by - 22, 136, 44, 8);
                         mCtx.fill();
-                        mCtx.fillStyle = '#fecaca';
-                        mCtx.font = 'bold 10px JetBrains Mono, monospace';
+                        mCtx.stroke();
+
+                        mCtx.fillStyle = '#fef2f2';
+                        mCtx.font = '800 13px JetBrains Mono, monospace';
                         mCtx.textAlign = 'center';
-                        mCtx.fillText(`${sec.label} DIRT`, bx, by + 4);
+                        mCtx.textBaseline = 'middle';
+                        mCtx.fillText(`${sec.label} DIRT`, bx, by - 8);
+
+                        mCtx.fillStyle = '#fde047';
+                        mCtx.font = '900 11px Inter, sans-serif';
+                        mCtx.fillText('NO AUTO STOP', bx, by + 9);
                     }
                     mCtx.restore();
                 }
