@@ -2284,22 +2284,38 @@
                     const boxColor = inDanger ? '#ef4444' : (inCaution ? '#f59e0b' : '#22c55e');
 
                     ctx.strokeStyle = boxColor;
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = 2.2;
                     ctx.strokeRect(-14, -14, 28, 28);
 
                     const tagText = inDanger ? `${w.name.toUpperCase()} · STOP` : w.name.toUpperCase();
-                    ctx.font = 'bold 8px JetBrains Mono, monospace';
+                    ctx.font = '800 12px Inter, sans-serif';
                     const textW = ctx.measureText(tagText).width;
-                    const pillW = Math.max(42, textW + 10);
+                    const pillW = Math.max(58, textW + 16);
+                    const pillH = 20;
+                    const pillY = -38;
 
-                    ctx.fillStyle = boxColor;
+                    // Dark high-contrast pill background with colored border & drop shadow
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                    ctx.shadowBlur = 6;
+                    ctx.shadowOffsetY = 2;
+                    ctx.fillStyle = inDanger ? 'rgba(127, 29, 29, 0.96)' : 'rgba(9, 13, 22, 0.94)';
                     ctx.beginPath();
-                    ctx.roundRect(-pillW / 2, -28, pillW, 12, 3);
+                    ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 5);
                     ctx.fill();
+                    ctx.restore();
 
+                    ctx.strokeStyle = boxColor;
+                    ctx.lineWidth = 1.8;
+                    ctx.beginPath();
+                    ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 5);
+                    ctx.stroke();
+
+                    // Crisp high-contrast label text
                     ctx.fillStyle = '#ffffff';
                     ctx.textAlign = 'center';
-                    ctx.fillText(tagText, 0, -19);
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(tagText, 0, pillY + pillH / 2 + 0.5);
                 }
 
                 ctx.restore();
@@ -2785,22 +2801,31 @@
 
                     // AI Detection Bounding Box
                     mCtx.strokeStyle = boxColor;
-                    mCtx.lineWidth = 2.8;
+                    mCtx.lineWidth = 3;
                     mCtx.strokeRect(-18, -18, 36, 36);
 
-                    // Classification + Name Header Tag
+                    // High-contrast Classification + Name Header Tag
                     const classLabel = `PERSON · ${w.name.toUpperCase()}`;
-                    mCtx.font = 'bold 11px JetBrains Mono, monospace';
-                    const tagW = Math.max(82, mCtx.measureText(classLabel).width + 12);
+                    mCtx.font = '800 13px Inter, sans-serif';
+                    const tagW = Math.max(106, mCtx.measureText(classLabel).width + 16);
+                    const tagH = 22;
+                    const tagY = -44;
 
-                    mCtx.fillStyle = boxColor;
+                    mCtx.fillStyle = inDanger ? 'rgba(127, 29, 29, 0.96)' : 'rgba(9, 13, 22, 0.95)';
                     mCtx.beginPath();
-                    mCtx.roundRect(-tagW / 2, -38, tagW, 17, 4);
+                    mCtx.roundRect(-tagW / 2, tagY, tagW, tagH, 5);
                     mCtx.fill();
+
+                    mCtx.strokeStyle = boxColor;
+                    mCtx.lineWidth = 2;
+                    mCtx.beginPath();
+                    mCtx.roundRect(-tagW / 2, tagY, tagW, tagH, 5);
+                    mCtx.stroke();
 
                     mCtx.fillStyle = '#ffffff';
                     mCtx.textAlign = 'center';
-                    mCtx.fillText(classLabel, 0, -26);
+                    mCtx.textBaseline = 'middle';
+                    mCtx.fillText(classLabel, 0, tagY + tagH / 2 + 0.5);
                 }
                 mCtx.restore();
             }
