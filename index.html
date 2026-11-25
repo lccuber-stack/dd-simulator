@@ -118,6 +118,23 @@
             animation: pulse-amber 1.4s infinite ease-in-out;
         }
 
+        @keyframes slide-down-top {
+            0% {
+                opacity: 0;
+                transform: translateY(-115%);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .dirt-banner-slide-in {
+            animation: slide-down-top 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .dirt-banner-slide-in.alert-pulse-amber {
+            animation: slide-down-top 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards, pulse-amber 1.4s 0.36s infinite ease-in-out;
+        }
+
         @keyframes pulse-icon-trigger {
             0%, 100% {
                 transform: translateX(-50%) scale(1.1);
@@ -181,6 +198,26 @@
 
     <!-- 12" Portrait HMI Display Frame (1080x1920 Aspect Ratio) -->
     <div class="hmi-chassis">
+
+        <!-- TOP SLIDE-DOWN DIRT DETECTION NOTIFICATION BANNER -->
+        <div id="dirtAlertBanner" class="hidden dirt-banner-slide-in absolute top-2 left-2.5 right-2.5 z-40 bg-slate-950/95 backdrop-blur-md border-2 border-amber-500 alert-pulse-amber rounded-xl px-3.5 py-2.5 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div id="dirtAlertIconBox" class="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-400/70 flex items-center justify-center text-amber-400 shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div id="dirtAlertTitle" class="text-xs sm:text-sm font-extrabold text-amber-300 tracking-wide uppercase truncate">DIRT ON CAMERA</div>
+                    <div id="dirtAlertMessage" class="text-[11px] sm:text-xs text-slate-200 font-medium leading-snug">Auto Stop is not working properly.</div>
+                </div>
+                <button id="dismissDirtBannerBtn" type="button" class="w-8 h-8 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 active:scale-95 border border-amber-400/50 text-amber-200 flex items-center justify-center shrink-0 transition-all" title="Avfärda varning">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
 
         <!-- TOP BAR: Minimalist Machine & Auto Stop Status -->
         <header class="hmi-header">
@@ -271,21 +308,6 @@
                 <button id="dismissCollisionBtn" class="px-2.5 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 active:scale-95 text-white text-[11px] font-bold uppercase tracking-wider shrink-0 border border-red-300/60">
                     Reset
                 </button>
-            </div>
-
-            <!-- DIRT DETECTION NOTIFICATION BANNER -->
-            <div id="dirtAlertBanner" class="hidden absolute bottom-3 left-3 right-3 z-20 bg-slate-950/95 backdrop-blur-md border-2 border-amber-500 alert-pulse-amber rounded-xl px-3.5 py-2.5 shadow-2xl">
-                <div class="flex items-center gap-3">
-                    <div id="dirtAlertIconBox" class="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-400/70 flex items-center justify-center text-amber-400 shrink-0">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
-                        </svg>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div id="dirtAlertTitle" class="text-xs sm:text-sm font-extrabold text-amber-300 tracking-wide uppercase truncate">DIRT ON CAMERA</div>
-                        <div id="dirtAlertMessage" class="text-[11px] sm:text-xs text-slate-200 font-medium leading-snug">Auto Stop is not working properly.</div>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -746,6 +768,7 @@
             lastTime: performance.now(),
             dirtTimer: 0,
             lastAlertSignature: '',
+            dismissedAlertSignature: '',
             lastLimitBumpTime: 0,
             externalBubble: {
                 active: false,
@@ -1578,6 +1601,11 @@
             });
         });
 
+        document.getElementById('dismissDirtBannerBtn')?.addEventListener('click', () => {
+            state.dismissedAlertSignature = state.lastAlertSignature;
+            document.getElementById('dirtAlertBanner')?.classList.add('hidden');
+        });
+
         // Swing limit listeners
         document.getElementById('btnLeftLimitDec')?.addEventListener('click', () => adjustSideLimit('left', -15));
         document.getElementById('btnLeftLimitInc')?.addEventListener('click', () => adjustSideLimit('left', 15));
@@ -1717,6 +1745,7 @@
             const bannerTitle = document.getElementById('dirtAlertTitle');
             const bannerMsg = document.getElementById('dirtAlertMessage');
             const bannerIconBox = document.getElementById('dirtAlertIconBox');
+            const dismissBtn = document.getElementById('dismissDirtBannerBtn');
 
             // Update Top Header Pill & Center Octagonal STOP Sign Icon
             if (blindList.length >= 2) {
@@ -1736,34 +1765,54 @@
                 setStopSignAppearance(state.emergencyBraking ? 'triggered' : 'on');
             }
 
-            // Immediate Dirt Notification Banner (no delay)
+            // Immediate Dirt Notification Banner (slides down from top of screen and stays at top until dismissed)
             if (dirtyList.length > 0) {
+                const sig = `${dirtyList.join(',')}|${blindList.join(',')}`;
+                if (sig !== state.lastAlertSignature) {
+                    state.lastAlertSignature = sig;
+                    state.dismissedAlertSignature = '';
+                    audio.playDirtChime();
+                }
+
+                if (state.dismissedAlertSignature === sig) {
+                    banner.classList.add('hidden');
+                    return;
+                }
+
+                const wasHidden = banner.classList.contains('hidden');
                 banner.classList.remove('hidden');
                 const camLabel = dirtyList.length === 4 ? 'ALL CAMERAS' : `${dirtyList.join(' & ')} CAMERA${dirtyList.length > 1 ? 'S' : ''}`;
                 bannerTitle.textContent = `DIRT ON ${camLabel}`;
 
                 if (blindList.length > 0) {
-                    banner.className = 'absolute bottom-3 left-3 right-3 z-20 bg-slate-950/95 backdrop-blur-md border-2 border-red-500 rounded-xl px-3.5 py-2.5 shadow-2xl';
+                    banner.className = 'dirt-banner-slide-in absolute top-2 left-2.5 right-2.5 z-40 bg-slate-950/95 backdrop-blur-md border-2 border-red-500 rounded-xl px-3.5 py-2.5 shadow-2xl';
                     bannerTitle.className = 'text-xs sm:text-sm font-extrabold text-red-400 tracking-wide uppercase truncate';
                     bannerIconBox.className = 'w-9 h-9 rounded-lg bg-red-500/20 border border-red-400/70 flex items-center justify-center text-red-400 shrink-0';
+                    if (dismissBtn) {
+                        dismissBtn.className = 'w-8 h-8 rounded-lg bg-red-500/15 hover:bg-red-500/30 active:scale-95 border border-red-400/50 text-red-200 flex items-center justify-center shrink-0 transition-all';
+                    }
                     bannerMsg.textContent = blindList.length >= 2
                         ? 'Auto Stop is disabled due to dirty camera lenses.'
                         : 'Auto Stop is disabled in dirty camera zone.';
                 } else {
-                    banner.className = 'absolute bottom-3 left-3 right-3 z-20 bg-slate-950/95 backdrop-blur-md border-2 border-amber-500 alert-pulse-amber rounded-xl px-3.5 py-2.5 shadow-2xl';
+                    banner.className = 'dirt-banner-slide-in absolute top-2 left-2.5 right-2.5 z-40 bg-slate-950/95 backdrop-blur-md border-2 border-amber-500 alert-pulse-amber rounded-xl px-3.5 py-2.5 shadow-2xl';
                     bannerTitle.className = 'text-xs sm:text-sm font-extrabold text-amber-300 tracking-wide uppercase truncate';
                     bannerIconBox.className = 'w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-400/70 flex items-center justify-center text-amber-400 shrink-0';
+                    if (dismissBtn) {
+                        dismissBtn.className = 'w-8 h-8 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 active:scale-95 border border-amber-400/50 text-amber-200 flex items-center justify-center shrink-0 transition-all';
+                    }
                     bannerMsg.textContent = 'Auto Stop is not working properly.';
                 }
 
-                const sig = `${dirtyList.join(',')}|${blindList.join(',')}`;
-                if (sig !== state.lastAlertSignature) {
-                    state.lastAlertSignature = sig;
-                    audio.playDirtChime();
+                if (wasHidden) {
+                    banner.style.animation = 'none';
+                    void banner.offsetWidth;
+                    banner.style.animation = '';
                 }
             } else {
                 banner.classList.add('hidden');
                 state.lastAlertSignature = '';
+                state.dismissedAlertSignature = '';
             }
         }
 
