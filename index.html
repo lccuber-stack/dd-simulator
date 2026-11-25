@@ -118,14 +118,6 @@
             animation: pulse-amber 1.4s infinite ease-in-out;
         }
 
-        @keyframes flash-red {
-            0%, 100% { background-color: rgba(220, 38, 38, 0.96); }
-            50% { background-color: rgba(153, 27, 27, 0.96); }
-        }
-        .emergency-flash {
-            animation: flash-red 0.55s infinite;
-        }
-
         @keyframes pulse-icon-trigger {
             0%, 100% {
                 transform: translateX(-50%) scale(1.1);
@@ -265,17 +257,6 @@
                 <span id="chip-rear" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-700/60">R:OK</span>
                 <span id="chip-left" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-700/60">L:OK</span>
                 <span id="chip-right" class="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-700/60">RGT:OK</span>
-            </div>
-
-            <!-- AUTO STOP INTERVENTION BANNER -->
-            <div id="emergencyBrakeBanner" class="hidden absolute top-16 left-3 right-3 z-30 emergency-flash border-2 border-red-200 rounded-xl px-3.5 py-2.5 shadow-2xl flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-full bg-white text-red-700 font-black flex items-center justify-center text-base shrink-0">!</div>
-                    <div>
-                        <div class="text-xs sm:text-sm font-black text-white tracking-wider uppercase">AUTO STOP ACTIVATED</div>
-                        <div class="text-[11px] text-red-100 font-medium">Person inside safety zone — Drive locked until clear.</div>
-                    </div>
-                </div>
             </div>
 
             <!-- COLLISION ALERT BANNER (Triggered if driven/swung into person while camera is blind) -->
@@ -761,7 +742,6 @@
             washing: false,
             washProgress: 0,
             emergencyBraking: false,
-            autoStopBannerUntil: 0,
             collisionActive: false,
             lastTime: performance.now(),
             dirtTimer: 0,
@@ -1820,8 +1800,7 @@
                 }
             }
 
-            // 2. Auto Stop Locking & 3-Second Minimum Banner Display
-            const emergencyBanner = document.getElementById('emergencyBrakeBanner');
+            // 2. Auto Stop Locking & Center Stop Sign Pulsing
             const centerIcon = document.getElementById('centerAutoStopIcon');
 
             if (personInDangerZone) {
@@ -1829,19 +1808,14 @@
                     state.emergencyBraking = true;
                     audio.playEmergencyBrake();
                 }
-                state.autoStopBannerUntil = now + 3000;
                 ex.speed = 0;
                 ex.swingVelocity = 0;
-                emergencyBanner?.classList.remove('hidden');
                 centerIcon?.classList.add('auto-stop-icon-triggered');
                 setStopSignAppearance('triggered');
             } else {
                 if (state.emergencyBraking) {
                     state.emergencyBraking = false;
                     centerIcon?.classList.remove('auto-stop-icon-triggered');
-                }
-                if (now >= state.autoStopBannerUntil) {
-                    emergencyBanner?.classList.add('hidden');
                 }
             }
 
@@ -2486,19 +2460,13 @@
             }
             ctx.stroke();
 
-            // 8. External PA Warning Speech Bubble Overlay
+            // 8. External PA Warning Speech Bubble Overlay (Always originates from the excavator)
             if (state.externalBubble.active) {
                 if (Date.now() > state.externalBubble.until) {
                     state.externalBubble.active = false;
                 } else {
-                    const tw = state.externalBubble.targetWorker;
-                    let bx = cx;
-                    let by = cy - 68;
-
-                    if (tw && !tw.struck) {
-                        bx = cx + (tw.x - ex.x);
-                        by = cy + (tw.y - ex.y) - 44;
-                    }
+                    const bx = cx;
+                    const by = cy - 62;
 
                     ctx.save();
                     ctx.font = 'bold 11px Inter, sans-serif';
@@ -2511,7 +2479,7 @@
                     const clampedX = Math.max(boxW / 2 + 10, Math.min(viewW - boxW / 2 - 10, bx));
                     const clampedY = Math.max(58, Math.min(viewH - 46, by));
 
-                    // Speech bubble shadow & body
+                    // Speech bubble body
                     ctx.fillStyle = 'rgba(254, 243, 199, 0.98)';
                     ctx.strokeStyle = '#d97706';
                     ctx.lineWidth = 2;
@@ -2520,20 +2488,20 @@
                     ctx.fill();
                     ctx.stroke();
 
-                    // Speech bubble pointer tail
-                    const tailX = Math.max(clampedX - boxW / 2 + 14, Math.min(clampedX + boxW / 2 - 14, bx));
+                    // Speech bubble pointer tail pointing directly at the excavator center
+                    const tailX = cx;
                     ctx.fillStyle = 'rgba(254, 243, 199, 0.98)';
                     ctx.beginPath();
                     ctx.moveTo(tailX - 6, clampedY + boxH / 2 - 1);
                     ctx.lineTo(tailX + 6, clampedY + boxH / 2 - 1);
-                    ctx.lineTo(tailX, clampedY + boxH / 2 + 7);
+                    ctx.lineTo(tailX, clampedY + boxH / 2 + 9);
                     ctx.closePath();
                     ctx.fill();
 
                     ctx.strokeStyle = '#d97706';
                     ctx.beginPath();
                     ctx.moveTo(tailX - 6, clampedY + boxH / 2);
-                    ctx.lineTo(tailX, clampedY + boxH / 2 + 7);
+                    ctx.lineTo(tailX, clampedY + boxH / 2 + 9);
                     ctx.lineTo(tailX + 6, clampedY + boxH / 2);
                     ctx.stroke();
 
@@ -2642,30 +2610,12 @@
             threeCtx.upperCabGroup.updateMatrixWorld(true);
             threeCtx.camera.updateMatrixWorld(true);
 
-            // Project 3D Workers ONLY for External PA Speech Bubbles (no bounding boxes/classification on windshield)
-            const tempVec = new THREE.Vector3();
-            for (const w of state.workers) {
-                const wx3 = w.x * WORLD_SCALE_3D;
-                const wz3 = w.y * WORLD_SCALE_3D;
-
-                tempVec.set(wx3, w.struck ? 0.4 : 1.75, wz3);
-                tempVec.project(threeCtx.camera);
-
-                if (tempVec.z < 1.0) {
-                    const sx = (tempVec.x * 0.5 + 0.5) * viewW;
-                    const sy = (-tempVec.y * 0.5 + 0.5) * viewH;
-
-                    if (state.externalBubble.active && state.externalBubble.targetWorker === w) {
-                        drawSpeechBubble3D(sx, sy - 24, state.externalBubble.text);
-                    }
-                }
-            }
-
+            // External PA Speech Bubble always originates from the excavator cab/speaker
             if (state.externalBubble.active) {
                 if (Date.now() > state.externalBubble.until) {
                     state.externalBubble.active = false;
-                } else if (!state.externalBubble.targetWorker) {
-                    drawSpeechBubble3D(viewW / 2, viewH * 0.28, state.externalBubble.text);
+                } else {
+                    drawSpeechBubble3D(viewW / 2, viewH * 0.72, state.externalBubble.text, true);
                 }
             }
 
@@ -2924,24 +2874,30 @@
             // Portrait Monitor Bottom Status Footer (Detected Classification List)
             mCtx.fillStyle = 'rgba(9, 13, 20, 0.92)';
             mCtx.fillRect(0, mh - 56, mw, 56);
+            mCtx.strokeStyle = '#1e293b';
+            mCtx.lineWidth = 2;
+            mCtx.beginPath();
+            mCtx.moveTo(0, mh - 56);
+            mCtx.lineTo(mw, mh - 56);
+            mCtx.stroke();
+
+            const activeNames = state.workers
+                .filter(w => !w.struck && state.cameras[getSectorForWorldPoint(w.x, w.y)].dirt < BLIND_THRESHOLD)
+                .map(w => w.name);
+
             mCtx.fillStyle = '#94a3b8';
             mCtx.font = 'bold 11px JetBrains Mono, monospace';
-            mCtx.textAlign = 'left';
-            mCtx.fillText('CLASSIFICATION: PERSON', 14, mh - 34);
-
-            const identifiedNames = state.workers
-                .filter(w => !w.struck && state.cameras[getSectorForWorldPoint(w.x, w.y)].dirt < BLIND_THRESHOLD)
-                .map(w => w.name)
-                .join(', ');
-
-            mCtx.fillStyle = '#e2e8f0';
-            mCtx.font = 'bold 12px Inter, sans-serif';
-            mCtx.fillText(identifiedNames ? `ID: ${identifiedNames}` : 'ID: NONE IN VIEW', 14, mh - 14);
+            mCtx.textAlign = 'center';
+            mCtx.fillText(
+                activeNames.length > 0 ? `ID: ${activeNames.join(', ')}` : 'NO ACTIVE TARGETS IN VIEW',
+                mw / 2,
+                mh - 24
+            );
 
             threeCtx.cabMonitorTexture.needsUpdate = true;
         }
 
-        function drawSpeechBubble3D(bx, by, msg) {
+        function drawSpeechBubble3D(bx, by, msg, fromMachine = false) {
             hudCtx3d.save();
             hudCtx3d.font = 'bold 11px Inter, sans-serif';
             const boxW = Math.min(viewW - 24, hudCtx3d.measureText(msg).width + 24);
@@ -2956,6 +2912,23 @@
             hudCtx3d.roundRect(clampedX - boxW / 2, clampedY - boxH / 2, boxW, boxH, 10);
             hudCtx3d.fill();
             hudCtx3d.stroke();
+
+            if (fromMachine) {
+                hudCtx3d.fillStyle = 'rgba(254, 243, 199, 0.98)';
+                hudCtx3d.beginPath();
+                hudCtx3d.moveTo(clampedX - 6, clampedY + boxH / 2 - 1);
+                hudCtx3d.lineTo(clampedX + 6, clampedY + boxH / 2 - 1);
+                hudCtx3d.lineTo(clampedX, clampedY + boxH / 2 + 9);
+                hudCtx3d.closePath();
+                hudCtx3d.fill();
+
+                hudCtx3d.strokeStyle = '#d97706';
+                hudCtx3d.beginPath();
+                hudCtx3d.moveTo(clampedX - 6, clampedY + boxH / 2);
+                hudCtx3d.lineTo(clampedX, clampedY + boxH / 2 + 9);
+                hudCtx3d.lineTo(clampedX + 6, clampedY + boxH / 2);
+                hudCtx3d.stroke();
+            }
 
             hudCtx3d.fillStyle = '#78350f';
             hudCtx3d.textAlign = 'center';
